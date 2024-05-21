@@ -1,6 +1,6 @@
 // server.js
 const express = require('express');
-const { sequelize, ulrsProductos, HistorialPrecios, AlertaPrecio, Producto, Inventario, Usuario, zapatillasWebs } = require('./routes/basedatos.js');
+const { sequelize, urlsProductos, HistorialPrecios, AlertaPrecio, Producto, Inventario, Usuario, zapatillasWebs } = require('./routes/basedatos.js');
 const routes = require('./routes/index');
 
 
@@ -11,21 +11,23 @@ const path = require('path');
 app.use(express.json());
 
 // Sirve archivos estáticos desde la carpeta public
-app.use(express.static(path.join(__dirname, '../frontend/public')));
+// app.use(express.static(path.join(__dirname, '../frontend/build')));
 
-
+// app.get('*', (req, res) => {
+//   res.sendFile(path.join(__dirname, '../frontend', 'build', 'index.html'));
+// });
 
 app.use('/api', routes);
 
-async function dropTables() {
-  await AlertaPrecio.drop();
-  await HistorialPrecios.drop();
-  await ulrsProductos.drop();
-  await zapatillasWebs.drop();
-  await Producto.drop();
-  await Inventario.drop();
-  await Usuario.drop();
-}
+// async function dropTables() {
+//   await AlertaPrecio.drop();
+//   await HistorialPrecios.drop();
+//   await zapatillasWebs.drop();
+//   await urlsProductos.drop();
+//   await Producto.drop();
+//   await Inventario.drop();
+//   await Usuario.drop();
+// }
 
 // dropTables().then(() => {
 //   sequelize.sync({

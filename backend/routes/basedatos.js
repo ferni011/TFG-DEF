@@ -95,13 +95,21 @@ const HistorialPrecios = sequelize.define('HistorialPrecios', {
   precio: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false
+  },
+  tienda: {
+    type: DataTypes.STRING,
+    allowNull: false
   }
 });
 
-const ulrsProductos = sequelize.define('ulrsProductos', {
+const urlsProductos = sequelize.define('urlsProductos', {
   url: {
     type: DataTypes.STRING,
     allowNull: false
+  },
+  selector: {
+    type: DataTypes.STRING,
+    allowNull: true
   }
 });
 
@@ -128,7 +136,7 @@ Producto.hasOne(AlertaPrecio, { foreignKey: 'idProducto', onDelete: 'CASCADE', o
 
 Producto.hasMany(HistorialPrecios, { foreignKey: 'idProducto', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 
-Producto.hasMany(ulrsProductos, { foreignKey: 'idProducto', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+Producto.hasMany(urlsProductos, { foreignKey: 'idProducto', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 
 Producto.hasOne(zapatillasWebs, { foreignKey: 'idProducto', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 
@@ -240,15 +248,42 @@ async function devolverproductos(zapatilla) {
   return productos;
 }
 
-async function actualizaPrecioProducto(id, precio) {
+/*
+precios = array de precio;
+precio es un objeto que conteine precio y tienda
+precios = [{precio: 100, tienda: 'Amazon'}, {precio: 200, tienda: 'Aliexpress'}]
+*/ 
+async function actualizaPrecioProducto(id, precios, maximo) {
   const producto = await Producto.findByPk(id);
   if (producto) {
-    producto.precio = precio;
+    let precioMaximo = -Infinity;
+    let precioMinimo = Infinity;
+    for (let precio of precios) {
+      console.log(precio.precio)
+      console.log(precio.tienda)
+      let precioTienda = precio.precio;
+      let tienda = precio.tienda;
+
+      if (precioTienda != null && precioTienda != undefined && !Number.isNaN(precioTienda)) {
+        if (precioTienda > precioMaximo) {
+          precioMaximo = precioTienda;
+        }
+        if (precioTienda < precioMinimo) {
+          precioMinimo = precioTienda;
+        }
+        producto[tienda] = precioTienda;
+        await producto.save();
+        HistorialPrecios.create({
+          precio: precioTienda,
+          tienda: tienda,
+          idProducto: id
+        });
+        console.log(`Precio ${tienda} actualizado a ${precioTienda}`); // Agrega esta línea
+      }
+    }
+    producto.precio = maximo ? precioMaximo : precioMinimo;
     await producto.save();
-    HistorialPrecios.create({
-      precio: precio,
-      idProducto: id
-    });
+    return producto.precio;
   }
 }
 
@@ -256,7 +291,7 @@ async function agregaEnlacesProducto(id, enlaces) {
   const producto = await Producto.findByPk(id);
   if (producto && !producto.zapatilla) {
     for (const enlace of enlaces) {
-      await ulrsProductos.create({
+      await urlsProductos.create({
         idProducto: id,
         url: enlace
       });
@@ -273,7 +308,7 @@ async function agregaEnlacesProducto(id, enlaces) {
 async function obtenerUrlsProducto(id) {
   const producto = await Producto.findByPk(id);
   if (producto) {
-    const urls = await ulrsProductos.findAll({ where: { idProducto: id } });
+    const urls = await urlsProductos.findAll({ where: { idProducto: id } });
     return urls;
   }
 }
@@ -305,6 +340,22 @@ async function obtenerWebsElegidas(id) {
   return zapatilla;
 }
 
+async function modificaSelector(url, selector) {
+  //DEevuelve todas las url de la base de datos
+    const urlEncontrada = await encuentraURL(url)
+    if(!urlEncontrada){
+      throw new Error('No existe la url con el id proporcionado');
+    }else{
+      await urlsProductos.update({ selector: selector }, { where: { id: urlEncontrada.dataValues.id } });
+    }
 
-module.exports = { Producto, sequelize, ulrsProductos, HistorialPrecios, AlertaPrecio, Inventario, Usuario, zapatillasWebs, createProducto, createUsuario, createInventario, devolverproductoId, devolverproductos, actualizaPrecioProducto, agregaEnlacesProducto, eligeWebsZapatilla, obtenerUrlsProducto, obtenerWebsElegidas };
+}
+
+async function encuentraURL(url) {
+  const urls = urlsProductos.findOne({ where: { url: url } });
+  return urls;
+}
+
+
+module.exports = { Producto, sequelize, urlsProductos, HistorialPrecios, AlertaPrecio, Inventario, Usuario, zapatillasWebs, createProducto, createUsuario, createInventario, devolverproductoId, devolverproductos, actualizaPrecioProducto, agregaEnlacesProducto, eligeWebsZapatilla, obtenerUrlsProducto, obtenerWebsElegidas, modificaSelector };
 

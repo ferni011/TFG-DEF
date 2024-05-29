@@ -1,5 +1,6 @@
 // productos.js
 const { Sequelize, DataTypes } = require('sequelize');
+const bcrypt = require('bcrypt');
 
 const sequelize = new Sequelize('Inventario', 'fer', 'fer', {
   host: 'localhost',
@@ -155,10 +156,13 @@ async function createUsuario(nombre, email, contrasena) {
         return;
       }
 
+      const salt = await bcrypt.genSalt(10);
+      const contrasenaEncriptada = await bcrypt.hash(contrasena, salt);
+
       const usuario = await Usuario.create({
         nombre: nombre,
         email: email,
-        contrasena: contrasena
+        contrasena: contrasenaEncriptada
       });
       resolve(usuario);
     } catch (error) {
@@ -252,7 +256,7 @@ async function devolverproductos(zapatilla) {
 precios = array de precio;
 precio es un objeto que conteine precio y tienda
 precios = [{precio: 100, tienda: 'Amazon'}, {precio: 200, tienda: 'Aliexpress'}]
-*/ 
+*/
 async function actualizaPrecioProducto(id, precios, maximo) {
   const producto = await Producto.findByPk(id);
   if (producto) {
@@ -342,12 +346,12 @@ async function obtenerWebsElegidas(id) {
 
 async function modificaSelector(url, selector) {
   //DEevuelve todas las url de la base de datos
-    const urlEncontrada = await encuentraURL(url)
-    if(!urlEncontrada){
-      throw new Error('No existe la url con el id proporcionado');
-    }else{
-      await urlsProductos.update({ selector: selector }, { where: { id: urlEncontrada.dataValues.id } });
-    }
+  const urlEncontrada = await encuentraURL(url)
+  if (!urlEncontrada) {
+    throw new Error('No existe la url con el id proporcionado');
+  } else {
+    await urlsProductos.update({ selector: selector }, { where: { id: urlEncontrada.dataValues.id } });
+  }
 
 }
 
@@ -356,6 +360,171 @@ async function encuentraURL(url) {
   return urls;
 }
 
+async function devuelveInventarios(idUsuario) {
+  const inventarios = await Inventario.findAll({ where: { idUsuario: idUsuario } });
+  return inventarios;
+}
 
-module.exports = { Producto, sequelize, urlsProductos, HistorialPrecios, AlertaPrecio, Inventario, Usuario, zapatillasWebs, createProducto, createUsuario, createInventario, devolverproductoId, devolverproductos, actualizaPrecioProducto, agregaEnlacesProducto, eligeWebsZapatilla, obtenerUrlsProducto, obtenerWebsElegidas, modificaSelector };
+async function iniciarSesion(email, contrasena) {
+  const usuario = await Usuario.findOne({ where: { email: email } });
+  if (!usuario) {
+    throw new Error('Correo electrónico o contraseña incorrectos');
+  }
+
+  const contrasenaCorrecta = await bcrypt.compare(contrasena, usuario.contrasena);
+  if (!contrasenaCorrecta) {
+    throw new Error('Correo electrónico o contraseña incorrectos');
+  }
+
+  return usuario.id;
+}
+
+
+async function eliminarUsuario(id, contrasenaIngresada) {
+  const usuario = await Usuario.findByPk(id);
+  if (usuario) {
+    const contrasenaCorrecta = await bcrypt.compare(contrasenaIngresada, usuario.contrasena);
+    if (contrasenaCorrecta) {
+      await usuario.destroy();
+    } else {
+      throw new Error('Contraseña incorrecta');
+    }
+  }
+}
+
+async function modificarUsuario(id, nombre, email, contrasenaNueva, contrasena) {
+  if (!contrasena) {
+    throw new Error('La contraseña es obligatoria');
+  }
+
+  const usuario = await Usuario.findByPk(id);
+  if (!usuario) {
+    throw new Error('No existe el usuario con el id proporcionado');
+  }
+
+  //Modificamos los datos del usuario
+  const contrasenaCorrecta = await bcrypt.compare(contrasena, usuario.contrasena);
+
+  if (contrasenaCorrecta) {
+    if (nombre) {
+      usuario.nombre = nombre;
+    }
+    if (email) {
+      usuario.email = email;
+    }
+    if (contrasenaNueva) {
+      const contrasenaEncriptada = await bcrypt.hash(contrasenaNueva, 10);
+      usuario.contrasena = contrasenaEncriptada;
+    }
+    await usuario.save();
+  } else {
+    throw new Error('Contraseña incorrecta');
+  }
+}
+
+
+async function obtenerProductos(idInventario) {
+  const productos = await Producto.findAll({ where: { idInventario: idInventario } });
+  return productos;
+}
+
+async function eliminarProducto(id) {
+  const producto = await Producto.findByPk(id);
+  if (producto) {
+    await producto.destroy();
+  }
+}
+
+async function editarInventario(id, nombre) {
+  const inventario = await Inventario.findByPk(id);
+  if (inventario) {
+    inventario.nombre = nombre;
+    await inventario.save();
+  }
+}
+
+
+async function editarProducto(id, nombre, descripcion, imagen, SKU, talla) {
+  const producto = await Producto.findByPk(id);
+  if (producto) {
+    if (nombre !== null && nombre !== undefined) {
+      producto.nombre = nombre;
+    }
+    if (descripcion !== null && descripcion !== undefined) {
+      producto.descripcion = descripcion;
+    }
+    if (imagen !== null && imagen !== undefined) {
+      producto.imagen = imagen;
+    }
+    if (SKU !== null && SKU !== undefined) {
+      producto.SKU = SKU;
+    }
+    if (talla !== null && talla !== undefined) {
+      producto.talla = talla;
+    }
+    await producto.save();
+  }
+}
+
+async function eliminarUrl(idProducto, url) {
+  //Busca el url en urlProductos del idProducto
+  const urlEncontrada = await urlsProductos.findOne({ where: { url: url, idProducto: idProducto } });
+  if (!urlEncontrada) {
+    throw new Error('No existe la url con el id proporcionado');
+  }
+  else {
+    await urlEncontrada.destroy();
+  }
+
+}
+
+async function obtenerPreciosProducto(id) {
+  const producto = await Producto.findByPk(id);
+  if (producto) {
+    const historial = await HistorialPrecios.findAll({ where: { idProducto: id } });
+    return historial;
+  }
+}
+
+async function crearAlertaPrecio(idProducto, precio, superior) {
+  const alertaExiste = await AlertaPrecio.findOne({ where: { idProducto: idProducto } });
+  if (alertaExiste) {
+    throw new Error('Ya existe una alerta de precio para este producto');
+  }
+  const alerta = await AlertaPrecio.create({
+    precio: precio,
+    superior: superior,
+    idProducto: idProducto
+  });
+  return alerta;
+}
+
+async function eliminaAlertaPrecio(id) {
+  const alerta = await AlertaPrecio.findByPk(id);
+  if (alerta) {
+    await alerta.destroy();
+  }
+}
+
+async function editarAlertaPrecio(id, precio, superior) {
+  const alerta = await AlertaPrecio.findByPk(id);
+  if (alerta) {
+    if (alerta.precio) {
+      alerta.precio = precio;
+    }
+    if (alerta.superior) {
+      alerta.superior = superior;
+    }
+    await alerta.save();
+  }
+}
+
+async function obtenerAlerta(idProducto) {
+  const alertas = await AlertaPrecio.findOne({ where: { idProducto: idProducto } });
+  return alertas;
+}
+
+
+
+module.exports = { Producto, sequelize, urlsProductos, HistorialPrecios, AlertaPrecio, Inventario, Usuario, zapatillasWebs, createProducto, createUsuario, createInventario, devolverproductoId, devolverproductos, actualizaPrecioProducto, agregaEnlacesProducto, eligeWebsZapatilla, obtenerUrlsProducto, obtenerWebsElegidas, modificaSelector, devuelveInventarios, iniciarSesion, eliminarUsuario, modificarUsuario, obtenerProductos, eliminarProducto, editarInventario, editarProducto, eliminarUrl, obtenerPreciosProducto, crearAlertaPrecio, eliminaAlertaPrecio, editarAlertaPrecio, obtenerAlerta };
 

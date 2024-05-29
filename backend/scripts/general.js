@@ -72,7 +72,7 @@ async function highlightTitles(url) {
         }
 
         // Selecciona todos los títulos (h1, h2, h3, h4, h5, h6)
-        const elements = Array.from(document.querySelectorAll('span, button, title, h1, h2, h3, h4, h5, h6, p'));
+        const elements = Array.from(document.querySelectorAll('span, div, p, h1, h2, h3, h4, h5, h6, a'));
         const titles = elements.filter(element => element.textContent.match(priceRegex));
 
         titles.forEach(title => {
@@ -132,7 +132,6 @@ async function actualizamosPrecioProducto(URL, selectorCSS) {
 
 // highlightTitles('https://www.zalando.es/nike-sportswear-dunk-retro-zapatillas-summit-whitelight-smoke-greyplatinum-tintwhite-ni112o0tc-a17.html');
 
-// highlightTitles('https://www.mediamarkt.es/es/product/_apple-iphone-13-medianoche-128-gb-5g-61-oled-super-retina-xdr-chip-a15-bionic-ios-1518038.html?utm_source=google&utm_medium=cpc&utm_campaign=rt_shopping_generic_nsp_na_MM-ES-S-G-CAT-PLA-PMAX.PH-PROMO-ALL-ALL&gad_source=1&gclid=Cj0KCQjwjLGyBhCYARIsAPqTz18eFvfZ95zF7ekVvo8ct6fH1Ec5zlmzMWXl-lpucPFb6ImCFximKt0aAvtYEALw_wcB&gclsrc=aw.ds');
-
+// highlightTitles("https://www.bershka.com/es/camiseta-manga-corta-cropped-c0p163901306.html?colorId=106&stylismId=137")
 
 module.exports = { precioSelectorPrimeraVez, actualizamosPrecioProducto };

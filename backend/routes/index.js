@@ -1,7 +1,7 @@
 // index.js
 const express = require('express');
 const router = express.Router();
-const { sequelize, createProducto, createUsuario, createInventario, actualizaPrecioProducto, devolverproductoId, agregaEnlacesProducto, eligeWebsZapatilla, obtenerUrlsProducto, obtenerWebsElegidas, modificaSelector } = require('./basedatos.js');
+const { sequelize, createProducto, createUsuario, createInventario, actualizaPrecioProducto, devolverproductoId, agregaEnlacesProducto, eligeWebsZapatilla, obtenerUrlsProducto, obtenerWebsElegidas, modificaSelector, devuelveInventarios, iniciarSesion, eliminarUsuario, modificarUsuario, obtenerProductos, eliminarProducto, editarInventario, editarProducto, eliminarUrl, obtenerPreciosProducto, crearAlertaPrecio, editarAlertaPrecio, eliminaAlertaPrecio, obtenerAlerta } = require('./basedatos.js');
 const llamadaComparaPayout = require('../scripts/scrapping.js');
 const { precioSelectorPrimeraVez, actualizamosPrecioProducto } = require('../scripts/general.js');
 
@@ -54,7 +54,8 @@ router.post('/zapatillaPrecio', async (req, res) => {
       return;
     }
 
-    let precioMax = await actualizaPrecioProducto(id, precios, true);
+    let preciosArray = Object.entries(precios).map(([tienda, precio]) => ({ tienda, precio }));
+    let precioMax = await actualizaPrecioProducto(id, preciosArray, true);
     res.status(201).json({ precioMax });
 
   } catch (err) {
@@ -71,6 +72,7 @@ router.get('/zapatilla/:id', async (req, res) => {
     const zapatilla = await devolverproductoId(id);
     console.log("EL ID ES:" + id);
     console.log("LA ZAPATILLA ES:" + zapatilla.SKU);
+    res.json(zapatilla);
   } catch (err) {
     console.error(err);
     res.status(500).send({ error: 'An error occurred while retrieving the zapatilla.' });
@@ -95,7 +97,7 @@ router.post('/usuario', async (req, res) => {
 
   try {
     const usuario = await createUsuario(nombre, email, contrasena);
-    res.status(201).json(usuario);
+    res.status(201).json(usuario.id);
   } catch (err) {
     console.error(err);
     res.status(400).send({ error: 'An error occurred while creating the usuario.' });
@@ -156,21 +158,29 @@ router.post('/anadeEnlace', async (req, res) => {
 
 //Método para guardar precio mínimo producto
 router.post('/precioProducto', async (req, res) => {
+  console.log('Inicio de la ruta /precioProducto');
   const { id } = req.body;
+  console.log('ID del producto:', id);
   try {
+    console.log('Obteniendo URLs del producto...');
     const urls = await obtenerUrlsProducto(id);
+    console.log('URLs del producto:', urls);
     let precios = [];
 
     for (let url of urls) {
+      console.log('Procesando URL:', url.url);
       if (url.selector == null) {
+        console.log('Obteniendo precio y selector por primera vez...');
         const producto = await precioSelectorPrimeraVez(url.url);
         const precio = producto.content;
+        console.log('Precio obtenido:', precio);
         await modificaSelector(url.url, producto.selector);
         const precioFloat = parseFloat(precio.replace(',', '.'));
         precios.push({ tienda: url.url, precio: precioFloat });
         console.log("LOS PRECIOS SON " + JSON.stringify(precios[0]));
       }
       else {
+        console.log('Actualizando precio del producto...');
         const precio = await actualizamosPrecioProducto(url.url, url.selector);
         console.log("El precio es:" + precio);
         if (precio != null) {
@@ -179,18 +189,20 @@ router.post('/precioProducto', async (req, res) => {
           precios.push({ tienda: url.url, precio: precioFloat });
         }
         else {
+          console.log('El precio es null, modificando selector...');
           modificaSelector(url.url, null);
         }
       }
     }
+    console.log('Actualizando precio del producto en la base de datos...');
     let precioMinimo = await actualizaPrecioProducto(id, precios, false);
+    console.log('Precio mínimo:', precioMinimo);
     res.status(201).json({ precioMinimo });
   }
   catch (err) {
-    console.error(err);
+    console.error('Error:', err);
     res.status(400).send({ error: 'Error al obtener precio de producto.' });
   }
-
 });
 
 
@@ -209,9 +221,188 @@ router.post('/eligeWebs', async (req, res) => {
 });
 
 
-router.get('/modificaSelector', async (req, res) => {
-  const contenido = await modificaSelector();
-  res.status(201).json(contenido);
+router.get('/inventarios', async (req, res) => {
+  const idUsuario = req.query.idUsuario;
+  try {
+    const inventarios = await devuelveInventarios(idUsuario);
+    res.json(inventarios);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: 'An error occurred while retrieving the inventarios.' });
+  }
+});
+
+router.post('/login', async (req, res) => {
+  const { email, contrasena } = req.body;
+  try {
+    const usuario = await iniciarSesion(email, contrasena);
+    res.status(201).json(usuario);
+  } catch (err) {
+    console.error(err);
+    res.status(400).send({ error: 'An error occurred while login' });
+  }
+});
+
+router.delete('/eliminarUsuario', async (req, res) => {
+  const { id, contrasena } = req.body;
+  try {
+    const usuario = await eliminarUsuario(id, contrasena);
+    res.status(201).send("Usuario eliminado");
+  } catch (err) {
+    console.error(err);
+    res.status(400).send({ error: 'An error occurred while deleting' });
+  }
+});
+
+router.put('/modificarUsuario', async (req, res) => {
+  const { id, nombre, email, contrasenaNueva, contrasena } = req.body;
+
+  console.log("ID: " + id);
+  console.log("Nombre: " + nombre);
+  console.log("Email: " + email);
+  console.log("Contraseña: " + contrasena);
+  console.log("Contraseña nueva: " + contrasenaNueva);
+
+  try {
+    await modificarUsuario(id, nombre, email, contrasenaNueva, contrasena);
+    res.status(201).send("Usuario modificado");
+  } catch (err) {
+    console.error(err);
+    res.status(400).send({ error: 'An error occurred while modifying' });
+  }
+});
+
+router.get('/productos', async (req, res) => {
+  const idInventario = req.query.idInventario;
+  try {
+    const productos = await obtenerProductos(idInventario);
+    res.json(productos);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: 'An error occurred while retrieving the productos.' });
+  }
+});
+
+
+router.delete('/eliminarProducto', async (req, res) => {
+  const { id } = req.query;
+  try {
+    const producto = await eliminarProducto(id);
+    res.status(201).send("Producto eliminado");
+  } catch (err) {
+    console.error(err);
+    res.status(400).send({ error: 'An error occurred while deleting' });
+  }
+});
+
+router.put('/modificarInventario', async (req, res) => {
+  const { id, nombre } = req.body;
+  try {
+    await editarInventario(id, nombre);
+    res.status(201).send("Inventario modificado");
+  } catch (err) {
+    console.error(err);
+    res.status(400).send({ error: 'An error occurred while modifying' });
+  }
+});
+
+router.get('/producto/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const producto = await devolverproductoId(id);
+    res.json(producto);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: 'An error occurred while retrieving the producto.' });
+  }
+});
+
+router.put('/modificarProducto', async (req, res) => {
+  const { id, nombre, descripcion, imagen, SKU, talla } = req.body;
+  try {
+    await editarProducto(id, nombre, descripcion, imagen, SKU, talla);
+    res.status(200).send("Producto modificado");
+  } catch (err) {
+    console.error(err);
+    res.status(400).send({ error: 'An error occurred while modifying' });
+  }
+});
+
+router.delete('/eliminarUrl', async (req, res) => {
+  const { idProducto, url } = req.body;
+  try {
+    const producto = await eliminarUrl(idProducto, url);
+    res.status(201).send("Url eliminada");
+  } catch (err) {
+    console.error(err);
+    res.status(400).send({ error: 'An error occurred while deleting' });
+  }});
+
+
+router.get('/obtenerEnlacesProducto', async (req, res) => {
+  const id = req.query.id;
+  try {
+    const urls = await obtenerUrlsProducto(id);
+    res.json(urls);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: 'An error occurred while retrieving the urls.' });
+  }
+});
+
+router.get('/obtenerPreciosProducto', async (req, res) => {
+  const id = req.query.id;
+  try {
+    const precios = await obtenerPreciosProducto(id);
+    res.json(precios);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: 'An error occurred while retrieving the precios.' });
+  }
+});
+
+router.post('/crearAlertaPrecio', async (req, res) => {
+  const { idProducto, precio, superior } = req.body;
+  try {
+    await crearAlertaPrecio(idProducto, precio, superior);
+    res.status(201).send("Alerta creada");
+  } catch (err) {
+    console.error(err);
+    res.status(400).send({ error: 'An error occurred while creating' });
+  }
+});
+
+router.delete('/eliminarAlertaPrecio', async (req, res) => {
+  const { id } = req.query;
+  try {
+    await eliminaAlertaPrecio(id);
+    res.status(201).send("Alerta eliminada");
+  } catch (err) {
+    console.error(err);
+    res.status(400).send({ error: 'An error occurred while deleting' });
+  }
+});
+
+router.put('/modificarAlertaPrecio', async (req, res) => {
+  const { id, precio, superior } = req.body;
+  try {
+    await editarAlertaPrecio(id, precio, superior);
+    res.status(201).send("Alerta modificada");
+  } catch (err) {
+    console.error(err);
+    res.status(400).send({ error: 'An error occurred while modifying' });
+  }
+});
+
+router.get('/obtenerAlerta', async (req, res) => {
+  const id = req.query.id;
+  try {
+    const alerta = await obtenerAlerta(id);
+    res.json(alerta);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: 'An error occurred while retrieving the alerta.' });
+  }
 });
 
 module.exports = router;

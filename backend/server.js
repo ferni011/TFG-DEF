@@ -2,6 +2,7 @@
 const express = require('express');
 const { sequelize, urlsProductos, HistorialPrecios, AlertaPrecio, Producto, Inventario, Usuario, zapatillasWebs } = require('./routes/basedatos.js');
 const routes = require('./routes/index');
+const cors = require('cors');
 
 
 const app = express();
@@ -9,6 +10,7 @@ const port = 1234;
 const path = require('path');
 
 app.use(express.json());
+app.use(cors())
 
 // Sirve archivos estáticos desde la carpeta public
 // app.use(express.static(path.join(__dirname, '../frontend/build')));

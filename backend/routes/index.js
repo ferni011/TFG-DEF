@@ -1,9 +1,19 @@
 // index.js
 const express = require('express');
 const router = express.Router();
-const { sequelize, createProducto, createUsuario, createInventario, actualizaPrecioProducto, devolverproductoId, agregaEnlacesProducto, eligeWebsZapatilla, obtenerUrlsProducto, obtenerWebsElegidas, modificaSelector, devuelveInventarios, iniciarSesion, eliminarUsuario, modificarUsuario, obtenerProductos, eliminarProducto, editarInventario, editarProducto, eliminarUrl, obtenerPreciosProducto, crearAlertaPrecio, editarAlertaPrecio, eliminaAlertaPrecio, obtenerAlerta } = require('./basedatos.js');
+const { sequelize, createProducto, createUsuario, createInventario, actualizaPrecioProducto, devolverproductoId, agregaEnlacesProducto, eligeWebsZapatilla, obtenerUrlsProducto, obtenerWebsElegidas, modificaSelector, devuelveInventarios, iniciarSesion, eliminarUsuario, modificarUsuario, obtenerProductos, eliminarProducto, editarInventario, editarProducto, eliminarUrl, obtenerPreciosProducto, crearAlertaPrecio, editarAlertaPrecio, eliminaAlertaPrecio, obtenerAlerta, precioActualProducto, eliminarInventario, buscarProductos} = require('./basedatos.js');
 const llamadaComparaPayout = require('../scripts/scrapping.js');
 const { precioSelectorPrimeraVez, actualizamosPrecioProducto } = require('../scripts/general.js');
+const cron = require('node-cron');
+const nodemailer = require("nodemailer");
+
+let transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'cuentatfgfer@gmail.com',
+    pass: 'cryafhomoayrzjzc'
+  }
+});
 
 
 //Método para guardar el mejor precio de una zapatilla
@@ -250,7 +260,7 @@ router.delete('/eliminarUsuario', async (req, res) => {
     res.status(201).send("Usuario eliminado");
   } catch (err) {
     console.error(err);
-    res.status(400).send({ error: 'An error occurred while deleting' });
+    res.status(400).send({ error: err.message });
   }
 });
 
@@ -264,11 +274,11 @@ router.put('/modificarUsuario', async (req, res) => {
   console.log("Contraseña nueva: " + contrasenaNueva);
 
   try {
-    await modificarUsuario(id, nombre, email, contrasenaNueva, contrasena);
-    res.status(201).send("Usuario modificado");
+    const usuarioModificado = await modificarUsuario(id, nombre, email, contrasenaNueva, contrasena);
+    res.status(201).json(usuarioModificado);
   } catch (err) {
     console.error(err);
-    res.status(400).send({ error: 'An error occurred while modifying' });
+    res.status(400).send({ error: err.message});
   }
 });
 
@@ -336,7 +346,8 @@ router.delete('/eliminarUrl', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(400).send({ error: 'An error occurred while deleting' });
-  }});
+  }
+});
 
 
 router.get('/obtenerEnlacesProducto', async (req, res) => {
@@ -402,6 +413,102 @@ router.get('/obtenerAlerta', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send({ error: 'An error occurred while retrieving the alerta.' });
+  }
+});
+
+let tarea;
+
+router.get('/pruebaCron', async (req, res) => {
+  try {
+    tarea = cron.schedule('*/1 * * * *', async () => {
+      try {
+        SKU = "ID2349"
+        TALLA = "42"
+
+        let webs = await obtenerWebsElegidas(12);
+
+        const result = await llamadaComparaPayout(SKU, TALLA, webs);
+        console.log(result)
+        let precioKlekt = result.payoutKlekt !== null ? parseFloat(result.payoutKlekt) : null;
+        let precioHypeboost = result.payoutHypeboost !== null ? parseFloat(result.payoutHypeboost) : null;
+        let precioLaced = result.payoutLaced !== null ? parseFloat(result.payoutLaced) : null;
+
+        let precios = {
+          klekt: precioKlekt,
+          hypeboost: precioHypeboost,
+          laced: precioLaced
+        }
+
+        if (!Object.values(precios).some(price => price !== null)) {
+          res.status(400).send({ error: 'Todos los precios son null, intentalo de nuevo' });
+          return;
+        }
+
+        let preciosArray = Object.entries(precios).map(([tienda, precio]) => ({ tienda, precio }));
+        let precioMax = Math.max(...preciosArray.map(p => p.precio));
+
+        let precioActual = await precioActualProducto(12);
+        console.log(precioActual);
+        if (precioMax > precioActual) {
+          let actualizado = await actualizaPrecioProducto(12, preciosArray, true);
+          if (actualizado) {
+            let mailOptions = {
+              from: 'cuentatfgfer@gmail.com',
+              to: 'fernandopastranago11@gmail.com',
+              subject: 'Precio del producto actualizado',
+              text: 'El precio del producto ha sido actualizado.'
+            };
+
+            transporter.sendMail(mailOptions, function (error, info) {
+              if (error) {
+                console.log(error);
+              } else {
+                console.log('Email sent: ' + info.response);
+              }
+            });
+
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    });
+    res.status(201).send("Tarea programada");
+  } catch (err) {
+    console.error(err);
+    res.status(400).send({ error: 'An error occurred while scheduling' });
+  }
+});
+
+router.get('/pararCron', async (req, res) => {
+  if (tarea) {
+    tarea.stop();
+    res.status(201).send("Tarea parada");
+  }
+  else {
+    res.status(400).send("No hay tarea programada");
+  }
+});
+
+router.delete('/eliminarInventario', async (req, res) => {
+  const { id } = req.query;
+  try {
+    await eliminarInventario(id);
+    res.status(201).send("Inventario eliminado");
+  } catch (err) {
+    console.error(err);
+    res.status(400).send({ error: 'An error occurred while deleting' });
+  }
+});
+
+router.get('/buscarProductos', async (req, res) => {
+  const { nombre, usuario } = req.query;
+  try {
+    const productos = await buscarProductos(nombre,usuario);
+    res.json(productos);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: 'An error occurred while retrieving the productos.' });
   }
 });
 

@@ -1,5 +1,5 @@
 // productos.js
-const { Sequelize, DataTypes } = require('sequelize');
+const { Sequelize, DataTypes, Op } = require('sequelize');
 const bcrypt = require('bcrypt');
 
 const sequelize = new Sequelize('Inventario', 'fer', 'fer', {
@@ -410,6 +410,10 @@ async function modificarUsuario(id, nombre, email, contrasenaNueva, contrasena) 
       usuario.nombre = nombre;
     }
     if (email) {
+      const emailExiste = await Usuario.findOne({ where: { email: email } });
+      if (emailExiste && emailExiste.id !== id) {
+        throw new Error('Ya existe un usuario con ese correo electrónico');
+      }
       usuario.email = email;
     }
     if (contrasenaNueva) {
@@ -417,6 +421,7 @@ async function modificarUsuario(id, nombre, email, contrasenaNueva, contrasena) 
       usuario.contrasena = contrasenaEncriptada;
     }
     await usuario.save();
+    return usuario;
   } else {
     throw new Error('Contraseña incorrecta');
   }
@@ -428,12 +433,6 @@ async function obtenerProductos(idInventario) {
   return productos;
 }
 
-async function eliminarProducto(id) {
-  const producto = await Producto.findByPk(id);
-  if (producto) {
-    await producto.destroy();
-  }
-}
 
 async function editarInventario(id, nombre) {
   const inventario = await Inventario.findByPk(id);
@@ -524,7 +523,62 @@ async function obtenerAlerta(idProducto) {
   return alertas;
 }
 
+async function precioActualProducto(id) {
+  const producto = await Producto.findByPk(id);
+  return producto.precio;
+}
 
+async function eliminarProducto(idProducto) {
+  const producto = await Producto.findByPk(idProducto);
+  if (producto) {
+    //Eliminamos su historial, sus alertas y sus urls
+    const historial = await HistorialPrecios.findAll({ where: { idProducto: idProducto } });
+    for (const precio of historial) {
+      await precio.destroy();
+    }
+    const alerta = await AlertaPrecio.findOne({ where: { idProducto: idProducto } });
+    if (alerta) {
+      await alerta.destroy();
+    }
+    const urls = await urlsProductos.findAll({ where: { idProducto: idProducto } });
+    for (const url of urls) {
+      await url.destroy();
+    }
+    await producto.destroy();
+  }
+  else{
+    throw new Error('No existe el producto con el id proporcionado');
+  }
+}
 
-module.exports = { Producto, sequelize, urlsProductos, HistorialPrecios, AlertaPrecio, Inventario, Usuario, zapatillasWebs, createProducto, createUsuario, createInventario, devolverproductoId, devolverproductos, actualizaPrecioProducto, agregaEnlacesProducto, eligeWebsZapatilla, obtenerUrlsProducto, obtenerWebsElegidas, modificaSelector, devuelveInventarios, iniciarSesion, eliminarUsuario, modificarUsuario, obtenerProductos, eliminarProducto, editarInventario, editarProducto, eliminarUrl, obtenerPreciosProducto, crearAlertaPrecio, eliminaAlertaPrecio, editarAlertaPrecio, obtenerAlerta };
+async function eliminarInventario(id) {
+  const inventario = await Inventario.findByPk(id);
+  if (inventario) {
+    const productos = await Producto.findAll({ where: { idInventario: id } });
+    for (const producto of productos) {
+      eliminarProducto(producto.id);
+    }
+    await inventario.destroy();
+  }
+}
+
+async function buscarProductos(nombre,usuario){
+  const inventarios = await Inventario.findAll({ where: { idUsuario: usuario } });
+
+  const idInventarios = inventarios.map(inventario => inventario.id);
+
+  const productos = await Producto.findAll({
+    where: {
+      nombre: {
+        [Op.like]: '%' + nombre + '%'
+      },  
+      idInventario: {
+        [Op.in]: idInventarios
+      }
+    }
+  });
+  return productos;
+}
+
+module.exports = { Producto, sequelize, urlsProductos, HistorialPrecios, AlertaPrecio, Inventario, Usuario, zapatillasWebs, createProducto, createUsuario, createInventario, devolverproductoId, devolverproductos, actualizaPrecioProducto, agregaEnlacesProducto, eligeWebsZapatilla, obtenerUrlsProducto, obtenerWebsElegidas, modificaSelector, devuelveInventarios, iniciarSesion, eliminarUsuario, modificarUsuario, obtenerProductos, eliminarProducto, editarInventario, editarProducto, eliminarUrl, obtenerPreciosProducto, crearAlertaPrecio, eliminaAlertaPrecio, editarAlertaPrecio, obtenerAlerta, precioActualProducto, eliminarInventario, buscarProductos };
 

@@ -676,9 +676,14 @@ async function busquedaLaced(browser, SKU, talla) {
     await page.waitForTimeout(2000);
 
     await page.waitForSelector('.footnote.total');
-    const precioFinal = await page.$eval('.footnote.total td:nth-child(2)', el => el.textContent);
+    const precioFinal = await page.$eval('.footnote.total td:nth-child(2)', el => {
+        let precioTexto = el.textContent;
+        let precioSinEuro = precioTexto.replace(' €', '');
+        let precioConPunto = precioSinEuro.replace(',', '.');
+        return parseFloat(precioConPunto);
+    });
 
-    return precioFinal
+    return precioFinal;
 
 }
 

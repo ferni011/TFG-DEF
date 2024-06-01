@@ -3,6 +3,7 @@ const express = require('express');
 const { sequelize, urlsProductos, HistorialPrecios, AlertaPrecio, Producto, Inventario, Usuario, zapatillasWebs } = require('./routes/basedatos.js');
 const routes = require('./routes/index');
 const cors = require('cors');
+const cron = require('node-cron');
 
 
 const app = express();

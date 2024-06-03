@@ -7,6 +7,8 @@ const sequelize = new Sequelize('Inventario', 'fer', 'fer', {
   dialect: 'mysql'
 });
 
+
+
 const Producto = sequelize.define('Producto', {
   nombre: {
     type: DataTypes.STRING,
@@ -51,7 +53,12 @@ const Producto = sequelize.define('Producto', {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: false
-  }
+  },
+  superior: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true
+  },
 });
 
 const Usuario = sequelize.define('Usuario', {
@@ -195,7 +202,7 @@ async function createInventario(nombre, esProducto, idUsuario) {
 }
 
 
-async function createProducto(nombre, descripcion, imagen, SKU, talla, zapatilla, idInventario) {
+async function createProducto(nombre, descripcion, imagen, SKU, talla, zapatilla, idInventario, superior) {
   return new Promise(async (resolve, reject) => {
     try {
 
@@ -224,7 +231,8 @@ async function createProducto(nombre, descripcion, imagen, SKU, talla, zapatilla
         SKU: SKU,
         talla: talla,
         zapatilla: zapatilla,
-        idInventario: idInventario
+        idInventario: idInventario,
+        superior: superior
       });
       if (zapatilla) {
         await zapatillasWebs.create({
@@ -443,7 +451,7 @@ async function editarInventario(id, nombre) {
 }
 
 
-async function editarProducto(id, nombre, descripcion, imagen, SKU, talla) {
+async function editarProducto(id, nombre, descripcion, imagen, SKU, talla,superior) {
   const producto = await Producto.findByPk(id);
   if (producto) {
     if (nombre !== null && nombre !== undefined) {
@@ -460,6 +468,9 @@ async function editarProducto(id, nombre, descripcion, imagen, SKU, talla) {
     }
     if (talla !== null && talla !== undefined) {
       producto.talla = talla;
+    }
+    if (superior !== null && superior !== undefined) {
+      producto.superior = superior;
     }
     await producto.save();
   }
@@ -499,14 +510,14 @@ async function crearAlertaPrecio(idProducto, precio, superior) {
 }
 
 async function eliminaAlertaPrecio(id) {
-  const alerta = await AlertaPrecio.findByPk(id);
+  const alerta = await AlertaPrecio.findOne({ where: { idProducto: id} });
   if (alerta) {
     await alerta.destroy();
   }
 }
 
 async function editarAlertaPrecio(id, precio, superior) {
-  const alerta = await AlertaPrecio.findByPk(id);
+  const alerta = await AlertaPrecio.findOne({where: {idProducto: id}});
   if (alerta) {
     if (alerta.precio) {
       alerta.precio = precio;
@@ -556,7 +567,7 @@ async function eliminarInventario(id) {
   if (inventario) {
     const productos = await Producto.findAll({ where: { idInventario: id } });
     for (const producto of productos) {
-      eliminarProducto(producto.id);
+      await eliminarProducto(producto.id);
     }
     await inventario.destroy();
   }
@@ -580,5 +591,21 @@ async function buscarProductos(nombre,usuario){
   return productos;
 }
 
-module.exports = { Producto, sequelize, urlsProductos, HistorialPrecios, AlertaPrecio, Inventario, Usuario, zapatillasWebs, createProducto, createUsuario, createInventario, devolverproductoId, devolverproductos, actualizaPrecioProducto, agregaEnlacesProducto, eligeWebsZapatilla, obtenerUrlsProducto, obtenerWebsElegidas, modificaSelector, devuelveInventarios, iniciarSesion, eliminarUsuario, modificarUsuario, obtenerProductos, eliminarProducto, editarInventario, editarProducto, eliminarUrl, obtenerPreciosProducto, crearAlertaPrecio, eliminaAlertaPrecio, editarAlertaPrecio, obtenerAlerta, precioActualProducto, eliminarInventario, buscarProductos };
+
+async function obtenerAlertas(){
+  return await AlertaPrecio.findAll();
+}
+
+async function obtenerProductoAlerta(idAlerta){
+  const alerta = await AlertaPrecio.findByPk(idAlerta);
+  if(alerta){
+    const producto = await Producto.findByPk(alerta.idProducto);
+    return producto;
+  }
+}
+
+
+
+
+module.exports = { Producto, sequelize, urlsProductos, HistorialPrecios, AlertaPrecio, Inventario, Usuario, zapatillasWebs, createProducto, createUsuario, createInventario, devolverproductoId, devolverproductos, actualizaPrecioProducto, agregaEnlacesProducto, eligeWebsZapatilla, obtenerUrlsProducto, obtenerWebsElegidas, modificaSelector, devuelveInventarios, iniciarSesion, eliminarUsuario, modificarUsuario, obtenerProductos, eliminarProducto, editarInventario, editarProducto, eliminarUrl, obtenerPreciosProducto, crearAlertaPrecio, eliminaAlertaPrecio, editarAlertaPrecio, obtenerAlerta, precioActualProducto, eliminarInventario, buscarProductos, obtenerAlertas, obtenerProductoAlerta };
 

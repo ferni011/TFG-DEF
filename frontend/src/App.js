@@ -10,6 +10,7 @@ import Detalles from './Detalles';
 import Historial from './Historial';
 import ResponsiveAppBar from './ResponsiveAppBar';
 import Resultados from './Resultados';
+import AlertaProducto from './AlertaProducto';
 
 
 
@@ -17,7 +18,24 @@ function App() {
 
     const [usuario, setUsuario] = useState(null);
     const [inventarioActual, setInventarioActual] = useState(null);
-    
+
+    useEffect(() => {
+        const lanzarAlertas = async () => {
+            const response = await fetch(`http://localhost:1234/api/ejecutaAlertas`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Error al ejecutar las alertas');
+            }
+        };
+
+        lanzarAlertas();
+    }, []);
+
 
     return (
         <Router>
@@ -33,6 +51,7 @@ function App() {
                 <Route path="/detalles/:idProducto" element={usuario ? <Detalles /> : <Navigate to="/iniciar-sesion" />} />
                 <Route path="/historialPrecios/:idProducto" element={usuario ? <Historial /> : <Navigate to="/iniciar-sesion" />} />
                 <Route path="/resultados" element={usuario ? <Resultados /> : <Navigate to="/iniciar-sesion" />} />
+                <Route path="/alertaProducto/:idProducto" element={usuario ? <AlertaProducto /> : <Navigate to="/iniciar-sesion" />} />
             </Routes>
         </Router>
     );

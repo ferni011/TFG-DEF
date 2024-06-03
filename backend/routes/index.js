@@ -1,19 +1,37 @@
 // index.js
 const express = require('express');
 const router = express.Router();
-const { sequelize, createProducto, createUsuario, createInventario, actualizaPrecioProducto, devolverproductoId, agregaEnlacesProducto, eligeWebsZapatilla, obtenerUrlsProducto, obtenerWebsElegidas, modificaSelector, devuelveInventarios, iniciarSesion, eliminarUsuario, modificarUsuario, obtenerProductos, eliminarProducto, editarInventario, editarProducto, eliminarUrl, obtenerPreciosProducto, crearAlertaPrecio, editarAlertaPrecio, eliminaAlertaPrecio, obtenerAlerta, precioActualProducto, eliminarInventario, buscarProductos} = require('./basedatos.js');
+const { sequelize, createProducto, createUsuario, createInventario, actualizaPrecioProducto, devolverproductoId, agregaEnlacesProducto, eligeWebsZapatilla, obtenerUrlsProducto, obtenerWebsElegidas, modificaSelector, devuelveInventarios, iniciarSesion, eliminarUsuario, modificarUsuario, obtenerProductos, eliminarProducto, editarInventario, editarProducto, eliminarUrl, obtenerPreciosProducto, crearAlertaPrecio, editarAlertaPrecio, eliminaAlertaPrecio, obtenerAlerta, precioActualProducto, eliminarInventario, buscarProductos, obtenerAlertas, obtenerProductoAlerta } = require('./basedatos.js');
 const llamadaComparaPayout = require('../scripts/scrapping.js');
 const { precioSelectorPrimeraVez, actualizamosPrecioProducto } = require('../scripts/general.js');
 const cron = require('node-cron');
 const nodemailer = require("nodemailer");
+const multer = require('multer');
+const path = require('path');
+require('dotenv').config();
+
 
 let transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'cuentatfgfer@gmail.com',
-    pass: 'cryafhomoayrzjzc'
+    user: process.env.EMAILUSADO,
+    pass: process.env.CONTRASENAAPP
   }
 });
+
+
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, '../imagenes/'));
+  },
+  filename: function (req, file, cb) {
+    const originalName = path.basename(file.originalname);
+    cb(null, new Date().toISOString().replace(/:/g, '-') + originalName);
+  }
+});
+
+const upload = multer({ storage: storage });
 
 
 //Método para guardar el mejor precio de una zapatilla
@@ -129,10 +147,10 @@ router.post('/inventario', async (req, res) => {
 
 //Método para crear zapatilla
 router.post('/zapatilla', async (req, res) => {
-  const { nombre, descripcion, imagen, SKU, talla, idInventario } = req.body;
+  const { nombre, descripcion, imagen, SKU, talla, idInventario, superior } = req.body;
 
   try {
-    const zapatilla = await createProducto(nombre, descripcion, imagen, SKU, talla, true, idInventario);
+    const zapatilla = await createProducto(nombre, descripcion, imagen, SKU, talla, true, idInventario, superior);
     res.status(201).json(zapatilla);
   } catch (err) {
     console.error(err);
@@ -141,11 +159,13 @@ router.post('/zapatilla', async (req, res) => {
 });
 
 //Método para crear producto
-router.post('/producto', async (req, res) => {
-  const { nombre, descripcion, imagen, SKU, talla, idInventario } = req.body;
+router.post('/producto', upload.single('imagen'), async (req, res) => {
+  const { nombre, descripcion, SKU, talla, idInventario, superior } = req.body;
+
+  const imagen = 'http://localhost:1234/imagenes/' + req.file.filename;
 
   try {
-    const producto = await createProducto(nombre, descripcion, imagen, SKU, talla, false, idInventario);
+    const producto = await createProducto(nombre, descripcion, imagen, SKU, talla, false, idInventario, superior);
     res.status(201).json(producto);
   } catch (err) {
     console.error(err);
@@ -182,12 +202,17 @@ router.post('/precioProducto', async (req, res) => {
       if (url.selector == null) {
         console.log('Obteniendo precio y selector por primera vez...');
         const producto = await precioSelectorPrimeraVez(url.url);
-        const precio = producto.content;
-        console.log('Precio obtenido:', precio);
-        await modificaSelector(url.url, producto.selector);
-        const precioFloat = parseFloat(precio.replace(',', '.'));
-        precios.push({ tienda: url.url, precio: precioFloat });
-        console.log("LOS PRECIOS SON " + JSON.stringify(precios[0]));
+        if (producto !== null) {
+          const precio = producto.content;
+          console.log('Precio obtenido:', precio);
+          await modificaSelector(url.url, producto.selector);
+          const precioFloat = parseFloat(precio.replace(',', '.'));
+          precios.push({ tienda: url.url, precio: precioFloat });
+          console.log("LOS PRECIOS SON " + JSON.stringify(precios[0]));
+        } else {
+          console.log('No se pudo obtener el producto');
+          precios.push({ tienda: url.url, precio: null });
+        }
       }
       else {
         console.log('Actualizando precio del producto...');
@@ -200,12 +225,17 @@ router.post('/precioProducto', async (req, res) => {
         }
         else {
           console.log('El precio es null, modificando selector...');
-          modificaSelector(url.url, null);
+          await modificaSelector(url.url, null);
         }
       }
     }
     console.log('Actualizando precio del producto en la base de datos...');
-    let precioMinimo = await actualizaPrecioProducto(id, precios, false);
+
+    let producto = await devolverproductoId(id);
+
+    console.log(producto.superior);
+
+    let precioMinimo = await actualizaPrecioProducto(id, precios, producto.superior ? true : false);
     console.log('Precio mínimo:', precioMinimo);
     res.status(201).json({ precioMinimo });
   }
@@ -278,7 +308,7 @@ router.put('/modificarUsuario', async (req, res) => {
     res.status(201).json(usuarioModificado);
   } catch (err) {
     console.error(err);
-    res.status(400).send({ error: err.message});
+    res.status(400).send({ error: err.message });
   }
 });
 
@@ -327,10 +357,12 @@ router.get('/producto/:id', async (req, res) => {
   }
 });
 
-router.put('/modificarProducto', async (req, res) => {
-  const { id, nombre, descripcion, imagen, SKU, talla } = req.body;
+router.put('/modificarProducto', upload.single('imagen'), async (req, res) => {
+  const { id, nombre, descripcion, SKU, talla, superior } = req.body;
+  const imagen = req.file ? 'http://localhost:1234/imagenes/' + req.file.filename : null;
+
   try {
-    await editarProducto(id, nombre, descripcion, imagen, SKU, talla);
+    await editarProducto(id, nombre, descripcion, imagen, SKU, talla, superior);
     res.status(200).send("Producto modificado");
   } catch (err) {
     console.error(err);
@@ -504,11 +536,163 @@ router.delete('/eliminarInventario', async (req, res) => {
 router.get('/buscarProductos', async (req, res) => {
   const { nombre, usuario } = req.query;
   try {
-    const productos = await buscarProductos(nombre,usuario);
+    const productos = await buscarProductos(nombre, usuario);
     res.json(productos);
   } catch (err) {
     console.error(err);
     res.status(500).send({ error: 'An error occurred while retrieving the productos.' });
+  }
+});
+
+
+router.get('/ejecutaAlertas', async (req, res) => {
+  try {
+    cron.schedule('*/1 * * * *', async () => { // se ejecuta cada 5 minutos
+      let alertas = await obtenerAlertas();
+      for (let alerta of alertas) {
+        console.log("La alerta es", alerta)
+        console.log("El id es", alerta.idProducto)
+        let productoActual = await devolverproductoId(alerta.idProducto);
+        let precioActual = alerta.precio;
+
+        console.log(productoActual)
+
+        if (productoActual.zapatilla) {
+          const { SKU, talla } = productoActual;
+          let webs = await obtenerWebsElegidas(alerta.idProducto);
+
+          const result = await llamadaComparaPayout(SKU, talla, webs);
+          let precioKlekt = result.payoutKlekt !== null ? parseFloat(result.payoutKlekt) : null;
+          let precioHypeboost = result.payoutHypeboost !== null ? parseFloat(result.payoutHypeboost) : null;
+          let precioLaced = result.payoutLaced !== null ? parseFloat(result.payoutLaced) : null;
+
+          console.log("El precio de Klekt es: " + precioKlekt);
+          console.log("El precio de Hypeboost es: " + precioHypeboost);
+          console.log("El precio de Laced es: " + precioLaced);
+
+          let precios = {
+            klekt: precioKlekt,
+            hypeboost: precioHypeboost,
+            laced: precioLaced,
+          };
+
+          console.log(precios);
+
+          if (!Object.values(precios).some(price => price !== null)) {
+            console.log('Todos los precios son null, intentalo de nuevo');
+            return;
+          }
+
+          let preciosArray = Object.entries(precios).map(([tienda, precio]) => ({ tienda, precio }));
+          let precioMax;
+
+          if (alerta.superior) {
+            precioMax = Math.max(...preciosArray.map(p => p.precio));
+          } else {
+            precioMax = Math.min(...preciosArray.map(p => p.precio));
+          }
+
+          if (alerta.superior ? (precioMax > precioActual) : (precioMax < precioActual)) {
+            let mailOptions = {
+              from: 'cuentatfgfer@gmail.com',
+              to: 'fernandopastranago11@gmail.com',
+              subject: alerta.superior ? `El precio de la zapatilla ha superado el precio de ${precioActual}` : `El precio de la zapatilla se encuentra por debajo de ${precioActual}`,
+              text: `El precio actual es de ${precioMax}€`,
+            };
+
+            transporter.sendMail(mailOptions, function (error, info) {
+              if (error) {
+                console.log(error);
+              } else {
+                console.log('Email sent: ' + info.response);
+              }
+            });
+          } else {
+            console.log("No se ha superado el precio de la alerta");
+          }
+        } else {
+          const urls = await obtenerUrlsProducto(alerta.idProducto);
+          let precios = [];
+
+          for (let url of urls) {
+            if (url.selector == null) {
+              console.log('Selector no encontrado, vuelve a obtener precio producto');
+              continue;
+            } else {
+              console.log("Actualizamos precio producto okey")
+              const precio = await actualizamosPrecioProducto(url.url, url.selector);
+              if (precio != null) {
+                const precioFloat = parseFloat(precio.replace(',', '.'));
+                precios.push({ tienda: url.url, precio: precioFloat });
+              } else {
+                modificaSelector(url.url, null);
+              }
+            }
+          }
+
+          let precioMax;
+          if (alerta.superior) {
+            console.log("Alerta superior")
+            precioMax = Math.max(...precios.map(p => p.precio));
+            console.log("Precio maximo es ", precioMax)
+            if (precioMax > precioActual) {
+              let mailOptions = {
+                from: 'cuentatfgfer@gmail.com',
+                to: 'fernandopastranago11@gmail.com',
+                subject: `El precio del producto ha superado el precio de ${precioActual}`,
+                text: `El precio actual es de ${precioMax}€`,
+              };
+
+              transporter.sendMail(mailOptions, function (error, info) {
+                if (error) {
+                  console.log(error);
+                } else {
+                  console.log('Email sent: ' + info.response);
+                }
+              });
+            }
+          } else {
+            console.log("Alerta inferior")
+            precioMax = Math.min(...precios.map(p => p.precio));
+            console.log("Precio minimo es ", precioMax)
+            console.log("Precio actual ", precioActual)
+            if (precioMax < precioActual) {
+              let mailOptions = {
+                from: 'cuentatfgfer@gmail.com',
+                to: 'fernandopastranago11@gmail.com',
+                subject: `El precio de la zapatilla se encuentra por debajo de ${precioActual}`,
+                text: `El precio actual es de ${precioMax}€`,
+              };
+
+              transporter.sendMail(mailOptions, function (error, info) {
+                if (error) {
+                  console.log(error);
+                } else {
+                  console.log('Email sent: ' + info.response);
+                }
+              });
+            }
+          }
+        }
+      }
+    });
+
+    res.send({ message: 'Alertas ejecutadas correctamente' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: 'An error occurred while executing the alerts.' });
+  }
+});
+
+router.get('/productoAlerta', async (req, res) => {
+  const id = req.query.id;
+  try {
+    const producto = await obtenerAlertas();
+    res.json(producto);
+    console.log(producto[0].idProducto);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: 'An error occurred while retrieving the producto.' });
   }
 });
 

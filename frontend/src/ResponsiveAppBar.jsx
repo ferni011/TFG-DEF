@@ -80,7 +80,9 @@ function ResponsiveAppBar({ usuario, setUsuario }) {
 
 
     React.useEffect(() => {
-        navigate('/resultados', { state: { resultados: resultados } });
+        if (resultados.length > 0) {
+            navigate('/resultados', { state: { resultados: resultados } });
+        }
     }, [resultados]);
 
     const Search = styled('div')(({ theme }) => ({
@@ -129,25 +131,13 @@ function ResponsiveAppBar({ usuario, setUsuario }) {
         <AppBar position="static">
             <Container maxWidth="xl">
                 <Toolbar disableGutters>
-                    <AdbIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }} />
-                    <Typography
-                        variant="h6"
-                        noWrap
-                        component="a"
-                        sx={{
-                            mr: 2,
-                            display: { xs: 'none', md: 'flex' },
-                            fontFamily: 'monospace',
-                            fontWeight: 700,
-                            letterSpacing: '.3rem',
-                            color: 'inherit',
-                            textDecoration: 'none',
-                            cursor: 'pointer',
-                        }}
+                    <IconButton
+                        sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }}
                         onClick={() => navigate('/inicio')}
+                        style={{ color: 'whitesmoke' }}
                     >
-                        LOGO
-                    </Typography>
+                        <AdbIcon />
+                    </IconButton>
 
                     <Box sx={{ flexGrow: 35 }} />
 
@@ -187,26 +177,13 @@ function ResponsiveAppBar({ usuario, setUsuario }) {
                             ))}
                         </Menu>
                     </Box>
-                    <AdbIcon sx={{ display: { xs: 'flex', md: 'none' }, mr: 1 }} />
-                    <Typography
-                        variant="h5"
-                        noWrap
-                        component="a"
-                        sx={{
-                            mr: 2,
-                            display: { xs: 'flex', md: 'none' },
-                            flexGrow: 1,
-                            fontFamily: 'monospace',
-                            fontWeight: 700,
-                            letterSpacing: '.3rem',
-                            color: 'inherit',
-                            textDecoration: 'none',
-                            cursor: 'pointer',
-                        }}
+                    <IconButton
+                        sx={{ display: { xs: 'flex', md: 'none' }, mr: 1 }}
                         onClick={() => navigate('/inicio')}
+                        style={{ color: 'whitesmoke' }}
                     >
-                        LOGO
-                    </Typography>
+                        <AdbIcon />
+                    </IconButton>
                     <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
                         {usuario && pages.map((page) => (
                             <Button

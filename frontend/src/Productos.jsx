@@ -10,7 +10,11 @@ import Grid from '@mui/material/Grid';
 import Pagination from '@mui/material/Pagination';
 import ActionAreaCard from './ActionAreaCard';
 import { Checkbox } from '@mui/material';
-
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormControl from '@mui/material/FormControl';
+import FormLabel from '@mui/material/FormLabel';
 
 function Productos({ usuario, inventarioActual }) {
     const [modalIsOpen, setModalIsOpen] = useState(false);
@@ -28,8 +32,9 @@ function Productos({ usuario, inventarioActual }) {
     const [page, setPage] = useState(1);
     const itemsPerPage = 9;
     const [tituloInventarioModalOpen, setTituloInventarioModalOpen] = useState(false);
-    const navigate = useNavigate();
+    const [precioHistorial, setPrecioHistorial] = useState([]);
 
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (!inventarioActual) {
@@ -52,23 +57,27 @@ function Productos({ usuario, inventarioActual }) {
     const handleAddProducto = async (event) => {
         event.preventDefault();
 
-        let producto = { ...nuevoProducto, idInventario: inventarioActual.id };
+        let producto = { ...nuevoProducto, idInventario: inventarioActual.id, superior: precioHistorial === 'maximo' ? 1 : 0};
         if (producto.talla === '') {
             producto.talla = null;
         }
 
+        const formData = new FormData();
+        for (const key in producto) {
+            if (key === 'imagen' && producto[key] instanceof File) {
+                formData.append(key, producto[key], producto[key].name);
+            } else {
+                formData.append(key, producto[key]);
+            }
+        }
         const response = await fetch('http://localhost:1234/api/producto', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(producto)
+            body: formData
         });
 
         if (!response.ok) {
             throw new Error('Error al añadir producto');
         }
-
 
         const responseProductos = await fetch(`http://localhost:1234/api/productos?idInventario=${inventarioActual.id}`);
         if (!responseProductos.ok) {
@@ -84,7 +93,8 @@ function Productos({ usuario, inventarioActual }) {
             descripcion: '',
             imagen: '',
             SKU: '',
-            talla: ''
+            talla: '',
+            superior: ''
         });
     }
 
@@ -92,8 +102,7 @@ function Productos({ usuario, inventarioActual }) {
         setSelectedProducts(prevSelectedProducts => {
             if (prevSelectedProducts.includes(id)) {
                 return prevSelectedProducts.filter(productId => productId !== id);
-            }
-            else {
+            } else {
                 return [...prevSelectedProducts, id];
             }
         });
@@ -174,7 +183,6 @@ function Productos({ usuario, inventarioActual }) {
         navigate('/inventarios');
     }
 
-
     return (
         <div>
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: '30px' }}>
@@ -183,9 +191,9 @@ function Productos({ usuario, inventarioActual }) {
             <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <Grid container spacing={4} style={{ justifyContent: 'space-around', marginTop: '20px', maxWidth: '90%' }}>
                     {productos.slice((page - 1) * itemsPerPage, page * itemsPerPage).map(producto => (
-                        <Grid item xs={12} sm={6} md={4} key={producto.id}>
-                            <div style={{ position: 'relative' }}>
-                                <ActionAreaCard product={producto} />
+                        <Grid item xs={12} sm={6} md={4} key={producto.id} style={{ display: 'flex' }}>
+                            <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                <ActionAreaCard product={producto} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }} />
                                 {modoEdicion && (
                                     <Checkbox
                                         style={{ position: 'absolute', top: 0, right: 0 }}
@@ -202,8 +210,8 @@ function Productos({ usuario, inventarioActual }) {
                 <Button variant="contained" color="primary" onClick={() => setModalIsOpen(true)}>Añadir producto</Button>
                 {!modoEdicion ? (
                     <>
-                    <Button variant="contained" color="primary" onClick={handleEditInventory} style={{ marginLeft: '10px' }}>Editar inventario</Button>
-                    <Button variant="contained" onClick={handleDeleteInventory}  style={{ backgroundColor: '#f44336', color: 'white', marginLeft: '10px' }}>Eliminar inventario</Button>
+                        <Button variant="contained" color="primary" onClick={handleEditInventory} style={{ marginLeft: '10px' }}>Editar inventario</Button>
+                        <Button variant="contained" onClick={handleDeleteInventory} style={{ backgroundColor: '#f44336', color: 'white', marginLeft: '10px' }}>Eliminar inventario</Button>
                     </>
                 ) : (
                     <>
@@ -218,7 +226,13 @@ function Productos({ usuario, inventarioActual }) {
                 <DialogContent>
                     <TextField type="text" placeholder="Nombre" value={nuevoProducto.nombre} onChange={e => setNuevoProducto({ ...nuevoProducto, nombre: e.target.value })} fullWidth />
                     <TextField type="text" placeholder="Descripción" value={nuevoProducto.descripcion} onChange={e => setNuevoProducto({ ...nuevoProducto, descripcion: e.target.value })} fullWidth />
-                    <TextField type="text" placeholder="Imagen URL" value={nuevoProducto.imagen} onChange={e => setNuevoProducto({ ...nuevoProducto, imagen: e.target.value })} fullWidth />
+                    <TextField type="file" onChange={e => setNuevoProducto({ ...nuevoProducto, imagen: e.target.files[0] })} />
+                    <FormControl component="fieldset">
+                        <RadioGroup row aria-label="historial" name="row-radio-buttons-group" value={precioHistorial} onChange={(e) => setPrecioHistorial(e.target.value)}>
+                            <FormControlLabel value="maximo" control={<Radio />} label="Máximo" />
+                            <FormControlLabel value="minimo" control={<Radio />} label="Mínimo" />
+                        </RadioGroup>
+                    </FormControl>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleAddProducto} color="primary">Confirmar</Button>
@@ -227,25 +241,19 @@ function Productos({ usuario, inventarioActual }) {
             </Dialog>
             <Dialog open={tituloInventarioModalOpen} onClose={handleCloseTituloInventarioModal}>
                 <DialogTitle>Editar título del inventario</DialogTitle>
-                <DialogContent style={{ paddingTop: '10px' }}>
-                    <TextField
-                        label="Título del inventario"
-                        value={tituloInventario}
-                        onChange={handleTituloInventario}
-                        fullWidth
-                    />
+                <DialogContent>
+                    <TextField type="text" value={tituloInventario} onChange={handleTituloInventario} fullWidth />
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleFinalizarEdicion} color="primary">Guardar</Button>
+                    <Button onClick={handleFinalizarEdicion} color="primary">Confirmar</Button>
                     <Button onClick={handleCloseTituloInventarioModal} color="primary">Cancelar</Button>
                 </DialogActions>
             </Dialog>
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
                 <Pagination count={Math.ceil(productos.length / itemsPerPage)} page={page} onChange={handlePageChange} />
             </div>
         </div>
     );
-
 }
 
 export default Productos;

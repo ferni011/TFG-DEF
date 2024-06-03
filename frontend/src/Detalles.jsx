@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import Modal from 'react-modal';
+import { Grid, Box, Card, CardMedia, Button, Typography, TextField } from '@mui/material';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import IconButton from '@mui/material/IconButton';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormControl from '@mui/material/FormControl';
+import FormLabel from '@mui/material/FormLabel';
 
 const Detalles = () => {
     const { idProducto } = useParams();
@@ -10,6 +23,8 @@ const Detalles = () => {
     const [tituloEditado, setTituloEditado] = useState('');
     const [descripcionEditada, setDescripcionEditada] = useState('');
     const [imagenEditada, setImagenEditada] = useState('');
+    const [open, setOpen] = useState(false);
+    const [valorSeleccionado, setValorSeleccionado] = useState('maximo');
 
     const navigate = useNavigate();
 
@@ -56,28 +71,44 @@ const Detalles = () => {
         setEditando(true);
         setTituloEditado(producto.nombre);
         setDescripcionEditada(producto.descripcion);
-        setImagenEditada(producto.imagen);
+        setValorSeleccionado(producto.superior ? 'maximo' : 'minimo')
+        setOpen(true)
+    };
+
+    const handleClose = () => {
+        setOpen(false);
     };
 
     const handleSave = async () => {
-        const productoEditado = {
-            ...producto,
-            nombre: tituloEditado,
-            descripcion: descripcionEditada,
-            imagen: imagenEditada
-        };
+        const formData = new FormData();
+        formData.append('id', idProducto);
+        formData.append('nombre', tituloEditado);
+        formData.append('descripcion', descripcionEditada);
+        if (imagenEditada) {
+            formData.append('imagen', imagenEditada, imagenEditada.name);
+        }
+        formData.append('superior', valorSeleccionado === 'maximo' ? '1' : '0');
 
         const response = await fetch(`http://localhost:1234/api/modificarProducto`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ id: idProducto, ...productoEditado }),
+            body: formData,
         });
 
         if (response.ok) {
-            setProducto(productoEditado);
+            const message = await response.text();
+            console.log(message);
             setEditando(false);
+            setOpen(false);
+            fetch(`http://localhost:1234/api/producto/${idProducto}`).then(response => {
+                if (response.ok) {
+                    return response.json();
+                }
+                throw new Error('Error al obtener producto');
+            }).then(data => {
+                setProducto(data);
+            }).catch(error => {
+                console.error(error);
+            });
         } else {
             console.error('Error al guardar el producto: ', response.statusText);
         }
@@ -96,33 +127,79 @@ const Detalles = () => {
         }
     };
 
+
     return (
         <div>
             {producto ? (
-                <>
-                    {editando ? (
-                        <>
-                            <input type="text" value={tituloEditado} onChange={e => setTituloEditado(e.target.value)} />
-                            <textarea value={descripcionEditada} onChange={e => setDescripcionEditada(e.target.value)} />
-                            <input type="text" value={imagenEditada} onChange={e => setImagenEditada(e.target.value)} />
-                            <button onClick={handleSave}>Guardar</button>
-                        </>
-                    ) : (
-                        <>
-                            <h1>{producto.nombre}</h1>
-                            {producto.imagen && <img src={producto.imagen} alt={producto.nombre} />}
-                            <p>{producto.descripcion}</p>
-                            <p>Precio: {precioObtenido !== null ? precioObtenido : producto.precio}</p>
-                            <button onClick={handleEdit}>Editar</button>
-                            <button onClick={handleDelete}>Eliminar</button> {/* Nuevo botón */}
-                            <button><Link to={`/historialPrecios/${idProducto}`}>Historial de precios</Link></button>
-                            <button onClick={handleGetProductPrice}>Obtener precio de producto</button>
-                        </>
-                    )}
-                </>
+                <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} md={6}>
+                        {producto.imagen && (
+                            <Box mt={3} ml={2}>
+                                <Card>
+                                    <CardMedia
+                                        component="img"
+                                        height="550"
+                                        image={producto.imagen}
+                                        alt={producto.nombre}
+                                        style={{ objectFit: 'contain' }}
+                                    />
+                                </Card>
+                            </Box>
+                        )}
+                        <Box mt={2} display="flex" flexDirection="row" justifyContent="center" alignItems="center">
+                            <Button variant="contained" color="primary" onClick={handleEdit} sx={{ mr: 2 }}><EditIcon /></Button>
+                            <Button variant="contained" style={{ backgroundColor: 'red' }} onClick={handleDelete}><DeleteIcon /></Button>
+                        </Box>
+                    </Grid>
+                    <Grid item xs={12} md={6} display="flex" flexDirection="column" justifyContent="center" alignItems="center">
+                        <Typography variant="h3" align="center" mb={4}>
+                            {producto.nombre}
+                            <IconButton onClick={() => navigate(`/AlertaProducto/${idProducto}`)} style={{ marginLeft: '1vw' }}>
+                                <NotificationsIcon style={{ fontSize: '40px', color: 'gold' }} />
+                            </IconButton>
+                        </Typography>
+                        <Typography variant="body1" align="center" mb={2}>{producto.descripcion}</Typography>
+                        <Typography variant="body1" align="center">Precio: {precioObtenido !== null ? precioObtenido : producto.precio}</Typography>
+                        <Box mt={2} display="flex" flexDirection="row" justifyContent="center" alignItems="center">
+                            <Button variant="contained" color="primary" onClick={() => navigate(`/historialPrecios/${idProducto}`)} sx={{ mr: 2 }}>
+                                Historial de precios
+                            </Button>
+                            <Button variant="contained" color="primary" onClick={handleGetProductPrice}>Obtener mejor precio de producto</Button>
+                        </Box>
+                    </Grid>
+                </Grid>
             ) : (
                 <p>Loading...</p>
             )}
+            <Dialog open={open} onClose={handleClose}>
+                <DialogTitle>Editar Producto</DialogTitle>
+                <DialogContent>
+                    <TextField label="Nombre" value={tituloEditado} onChange={e => setTituloEditado(e.target.value)} fullWidth sx={{ mt: 2 }} />
+                    <TextField label="Descripción" value={descripcionEditada} onChange={e => setDescripcionEditada(e.target.value)} fullWidth sx={{ mt: 2 }} />
+                    <FormControl component="fieldset">
+                        <RadioGroup row aria-label="historial" name="row-radio-buttons-group" value={valorSeleccionado} onChange={(e) => setValorSeleccionado(e.target.value)}>
+                            <FormControlLabel value="maximo" control={<Radio />} label="Máximo" />
+                            <FormControlLabel value="minimo" control={<Radio />} label="Mínimo" />
+                        </RadioGroup>
+                    </FormControl>
+                    <input
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        id="raised-button-file"
+                        type="file"
+                        onChange={e => setImagenEditada(e.target.files[0])}
+                    />
+                    <label htmlFor="raised-button-file" style={{ display: 'flex', justifyContent: 'center' }}>
+                        <Button variant="contained" color="primary" component="span" fullWidth sx={{ mt: 2 }}>
+                            Subir imagen
+                        </Button>
+                    </label>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleClose}>Cancelar</Button>
+                    <Button onClick={handleSave}>Guardar</Button>
+                </DialogActions>
+            </Dialog>
         </div>
     );
 };

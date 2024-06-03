@@ -12,6 +12,7 @@ const path = require('path');
 
 app.use(express.json());
 app.use(cors())
+app.use('/imagenes', express.static(path.join(__dirname, '/imagenes')));
 
 // Sirve archivos estáticos desde la carpeta public
 // app.use(express.static(path.join(__dirname, '../frontend/build')));

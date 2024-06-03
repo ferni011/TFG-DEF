@@ -107,13 +107,13 @@ async function highlightTitles(url) {
         console.log(`Contenido: ${selectorEncontrado.content}`);
     } else {
         console.log('No se hizo clic en ningún título.');
+        return null;
     }
 
     // Cierra el navegador
     await browser.close();
 
-    console.log(selectorEncontrado)
-        ;
+    console.log(selectorEncontrado);
     return selectorEncontrado;
 }
 

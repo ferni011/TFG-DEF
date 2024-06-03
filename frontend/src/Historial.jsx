@@ -4,6 +4,9 @@ import Modal from 'react-modal';
 import { Line } from 'react-chartjs-2';
 import { Chart, registerables } from 'chart.js';
 import 'chartjs-adapter-date-fns';
+import { Grid, Box, Typography, Button } from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, List, ListItem, IconButton } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 Chart.register(...registerables);
 
@@ -15,6 +18,10 @@ const Historial = () => {
     const [existingUrls, setExistingUrls] = useState([]);
     const [precios, setPrecios] = useState([]);
     const [maximo, setMaximo] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const preciosPorPagina = 6;
+    const preciosPaginados = precios.slice((currentPage - 1) * preciosPorPagina, currentPage * preciosPorPagina);
 
     useEffect(() => {
         if (!modalIsOpen) {
@@ -131,7 +138,7 @@ const Historial = () => {
         labels: labels,
         datasets: [
             {
-                label: "Historial de precios",
+                label: "Historial",
                 data: datos,
                 fill: false,
                 backgroundColor: 'rgb(75, 192, 192)',
@@ -154,58 +161,90 @@ const Historial = () => {
     };
 
 
-
     return (
         <div>
-            <button onClick={handleOpenModal}>Añadir URLs</button>
-            <Modal isOpen={modalIsOpen} onRequestClose={handleCloseModal}>
-                <h2>Añadir URLs</h2>
-                <form onSubmit={handleAddUrl}>
-                    <input type="text" value={url} onChange={e => setUrl(e.target.value)} placeholder="URL" required />
-                    <button type="submit">Añadir a la lista</button>
-                </form>
-                <ul>
-                    {existingUrls && existingUrls.map((url, index) => (
-                        <li key={index}>
-                            {url}
-                            <button onClick={() => handleDeleteUrl(index)}>Eliminar</button>
-                        </li>
-                    ))}
-                    {urls && urls.map((url, index) => (
-                        <li key={index + (existingUrls ? existingUrls.length : 0)}>
-                            {url}
-                            <button onClick={() => handleDeleteNewUrl(index)}>Eliminar</button>
-                        </li>
-                    ))}
-                </ul>
-                <button onClick={handleAddAllUrls}>Guardar Urls Nuevas</button>
-            </Modal>
-            <h2>Historial de precios</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Fecha</th>
-                        <th>Tienda</th>
-                        <th>Precio</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {precios && precios.map((precio, index) => (
-                        <tr key={index}>
-                            <td>{new Date(precio.createdAt).toLocaleString()}</td>
-                            <td>{precio.tienda}</td>
-                            <td>{precio.precio}</td>
-                        </tr>
-                    ))}
-                    {precios.length === 0 && (
-                        <tr>
-                            <td colSpan="3">No hay precios registrados</td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
-            <h2>Gráfico de precios</h2>
-            <Line data={data} options={options} />
+            <Dialog open={modalIsOpen} onClose={handleCloseModal}>
+                <DialogTitle>Añadir URLs</DialogTitle>
+                <DialogContent>
+                    <form onSubmit={handleAddUrl}>
+                        <TextField
+                            type="text"
+                            value={url}
+                            onChange={e => setUrl(e.target.value)}
+                            placeholder="URL"
+                            required
+                            fullWidth
+                        />
+                        <Button type="submit" color="primary" variant="contained" style={{ marginTop: '10px' }}>Añadir a la lista</Button>
+                    </form>
+                    <List>
+                        {existingUrls && existingUrls.map((url, index) => (
+                            <ListItem key={index}>
+                                {url}
+                                <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteUrl(index)}>
+                                    <DeleteIcon />
+                                </IconButton>
+                            </ListItem>
+                        ))}
+                        {urls && urls.map((url, index) => (
+                            <ListItem key={index + (existingUrls ? existingUrls.length : 0)}>
+                                {url}
+                                <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteNewUrl(index)}>
+                                    <DeleteIcon />
+                                </IconButton>
+                            </ListItem>
+                        ))}
+                    </List>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleAddAllUrls} color="primary" variant="contained">Guardar Urls Nuevas</Button>
+                </DialogActions>
+            </Dialog>
+            <Grid container spacing={3} style={{ marginTop: '10vh' }}>
+                <Grid item xs={12} md={6}>
+                    <Box display="flex" flexDirection="column" alignItems="center">
+                        <Box display="flex" justifyContent="center" width="100%" ml={4} mr={2}>
+                            <Line data={data} options={options} />
+                        </Box>
+                    </Box>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                    <Box mr={4}>
+                        <table style={{ width: '100%', textAlign: 'center' }}>
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tienda</th>
+                                    <th>Precio</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {preciosPaginados && preciosPaginados.map((precio, index) => (
+                                    <tr key={index}>
+                                        <td>{new Date(precio.createdAt).toLocaleString()}</td>
+                                        <td>
+                                            <a href={precio.tienda} target="_blank" rel="noopener noreferrer">{precio.tienda}</a>
+                                        </td>
+                                        <td>{precio.precio}€</td>
+                                    </tr>
+                                ))}
+                                {precios.length === 0 && (
+                                    <tr>
+                                        <td colSpan="3" style={{ height: '40vh' }}>No hay precios registrados</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                        <Box display="flex" justifyContent="center" mt={2}>
+                            <Button disabled={currentPage === 1 || precios.length === 0} onClick={() => setCurrentPage(currentPage - 1)}>Página anterior</Button>
+                            <Button disabled={currentPage === Math.ceil(precios.length / preciosPorPagina) || precios.length === 0} onClick={() => setCurrentPage(currentPage + 1)} style={{ marginLeft: '10px' }}>Página siguiente</Button>
+                        </Box>
+                    </Box>
+                </Grid>
+            </Grid>
+            <Box display="flex" justifyContent="center" mt={3}>
+                <Button variant="contained" color="primary" onClick={handleOpenModal}>Modificar enlaces del producto</Button>
+            </Box>
         </div>
     );
 }

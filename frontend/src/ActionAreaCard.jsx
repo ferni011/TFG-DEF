@@ -9,7 +9,7 @@ import { Link } from 'react-router-dom';
 function ActionAreaCard({ product }) {
   return (
     <Link to={`/detalles/${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-    <Card>
+    <Card style={{ height: '350px', overflow: 'auto' }}>
       <CardActionArea>
         <CardMedia
           component="img"

@@ -13,7 +13,7 @@ import Pagination from '@mui/material/Pagination';
 
 
 
-function Inventarios({ usuario, setInventarioActual }) {
+function Zapatillas({ usuario, setInventarioActual }) {
     const [modalIsOpen, setModalIsOpen] = useState(false);
     const [inventarios, setInventarios] = useState([]);
     const [nuevoInventario, setNuevoInventario] = useState('');
@@ -23,7 +23,7 @@ function Inventarios({ usuario, setInventarioActual }) {
 
 
     useEffect(() => {
-        fetch(`http://localhost:1234/api/inventariosProductos?idUsuario=${usuario}`).then(response => {
+        fetch(`http://localhost:1234/api/inventariosZapatillas?idUsuario=${usuario}`).then(response => {
             if (response.ok) {
                 return response.json();
             }
@@ -42,7 +42,7 @@ function Inventarios({ usuario, setInventarioActual }) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ idUsuario: usuario, nombre: nuevoInventario, esProducto: true })
+            body: JSON.stringify({ idUsuario: usuario, nombre: nuevoInventario, esProducto: false })
         });
 
         if (!response.ok) {
@@ -103,4 +103,4 @@ function Inventarios({ usuario, setInventarioActual }) {
     );
 }
 
-export default Inventarios;
+export default Zapatillas;

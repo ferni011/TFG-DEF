@@ -57,9 +57,13 @@ function Productos({ usuario, inventarioActual }) {
     const handleAddProducto = async (event) => {
         event.preventDefault();
 
-        let producto = { ...nuevoProducto, idInventario: inventarioActual.id, superior: precioHistorial === 'maximo' ? 1 : 0};
+        let producto = { ...nuevoProducto, idInventario: inventarioActual.id, superior: precioHistorial === 'maximo' ? 1 : 0 };
         if (producto.talla === '') {
             producto.talla = null;
+        }
+
+        if (!(producto.imagen instanceof File)) {
+            producto.imagen = "imagenes/default.jpg"; 
         }
 
         const formData = new FormData();
@@ -97,6 +101,56 @@ function Productos({ usuario, inventarioActual }) {
             superior: ''
         });
     }
+
+
+
+    const handleAddZapatilla = async (event) => {
+        event.preventDefault();
+
+        let producto = { ...nuevoProducto, idInventario: inventarioActual.id, superior: precioHistorial === 'maximo' ? 1 : 0 };
+
+        if (!(producto.imagen instanceof File)) {
+            producto.imagen = "imagenes/default.jpg"; 
+        }
+
+        const formData = new FormData();
+        for (const key in producto) {
+            if (key === 'imagen' && producto[key] instanceof File) {
+                formData.append(key, producto[key], producto[key].name);
+            } else {
+                formData.append(key, producto[key]);
+            }
+        }
+        
+        const response = await fetch('http://localhost:1234/api/zapatilla', {
+            method: 'POST',
+            body: formData
+        });
+
+
+        if (!response.ok) {
+            throw new Error('Error al añadir producto');
+        }
+
+        const responseProductos = await fetch(`http://localhost:1234/api/productos?idInventario=${inventarioActual.id}`);
+        if (!responseProductos.ok) {
+            throw new Error('Error al obtener productos');
+        }
+
+        const dataProductos = await responseProductos.json();
+        setProductos(dataProductos);
+
+        setModalIsOpen(false);
+        setNuevoProducto({
+            nombre: '',
+            descripcion: '',
+            imagen: '',
+            SKU: '',
+            talla: '',
+            superior: ''
+        });
+    }
+
 
     const handleSelectProduct = (id) => {
         setSelectedProducts(prevSelectedProducts => {
@@ -185,72 +239,80 @@ function Productos({ usuario, inventarioActual }) {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '30px' }}>
-                <h1>{tituloInventario}</h1>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <Grid container spacing={4} style={{ justifyContent: 'space-around', marginTop: '20px', maxWidth: '90%' }}>
-                    {productos.slice((page - 1) * itemsPerPage, page * itemsPerPage).map(producto => (
-                        <Grid item xs={12} sm={6} md={4} key={producto.id} style={{ display: 'flex' }}>
-                            <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                <ActionAreaCard product={producto} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }} />
-                                {modoEdicion && (
-                                    <Checkbox
-                                        style={{ position: 'absolute', top: 0, right: 0 }}
-                                        checked={selectedProducts.includes(producto.id)}
-                                        onChange={() => handleSelectProduct(producto.id)}
-                                    />
-                                )}
-                            </div>
-                        </Grid>
-                    ))}
-                </Grid>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px', marginBottom: '20px' }}>
-                <Button variant="contained" color="primary" onClick={() => setModalIsOpen(true)}>Añadir producto</Button>
-                {!modoEdicion ? (
-                    <>
-                        <Button variant="contained" color="primary" onClick={handleEditInventory} style={{ marginLeft: '10px' }}>Editar inventario</Button>
-                        <Button variant="contained" onClick={handleDeleteInventory} style={{ backgroundColor: '#f44336', color: 'white', marginLeft: '10px' }}>Eliminar inventario</Button>
-                    </>
-                ) : (
-                    <>
-                        <Button variant="contained" color="primary" onClick={handleOpenTituloInventarioModal} style={{ marginLeft: '10px' }}>Editar título del inventario</Button>
-                        <Button variant="contained" style={{ backgroundColor: '#f44336', color: 'white', marginLeft: '10px' }} onClick={handleDeleteProducts}>Eliminar productos seleccionados</Button>
-                        <Button variant="contained" style={{ backgroundColor: '#f44336', color: 'white', marginLeft: '10px' }} onClick={() => setModoEdicion(false)}>Cancelar edición</Button>
-                    </>
-                )}
-            </div>
-            <Dialog open={modalIsOpen} onClose={() => setModalIsOpen(false)}>
-                <DialogTitle>Añadir producto</DialogTitle>
-                <DialogContent>
-                    <TextField type="text" placeholder="Nombre" value={nuevoProducto.nombre} onChange={e => setNuevoProducto({ ...nuevoProducto, nombre: e.target.value })} fullWidth />
-                    <TextField type="text" placeholder="Descripción" value={nuevoProducto.descripcion} onChange={e => setNuevoProducto({ ...nuevoProducto, descripcion: e.target.value })} fullWidth />
-                    <TextField type="file" onChange={e => setNuevoProducto({ ...nuevoProducto, imagen: e.target.files[0] })} />
-                    <FormControl component="fieldset">
-                        <RadioGroup row aria-label="historial" name="row-radio-buttons-group" value={precioHistorial} onChange={(e) => setPrecioHistorial(e.target.value)}>
-                            <FormControlLabel value="maximo" control={<Radio />} label="Máximo" />
-                            <FormControlLabel value="minimo" control={<Radio />} label="Mínimo" />
-                        </RadioGroup>
-                    </FormControl>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleAddProducto} color="primary">Confirmar</Button>
-                    <Button onClick={() => setModalIsOpen(false)} color="primary">Cancelar</Button>
-                </DialogActions>
-            </Dialog>
-            <Dialog open={tituloInventarioModalOpen} onClose={handleCloseTituloInventarioModal}>
-                <DialogTitle>Editar título del inventario</DialogTitle>
-                <DialogContent>
-                    <TextField type="text" value={tituloInventario} onChange={handleTituloInventario} fullWidth />
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleFinalizarEdicion} color="primary">Confirmar</Button>
-                    <Button onClick={handleCloseTituloInventarioModal} color="primary">Cancelar</Button>
-                </DialogActions>
-            </Dialog>
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
-                <Pagination count={Math.ceil(productos.length / itemsPerPage)} page={page} onChange={handlePageChange} />
+            <div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '30px' }}>
+                    <h1>{tituloInventario}</h1>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <Grid container spacing={4} style={{ justifyContent: 'space-around', marginTop: '20px', maxWidth: '90%' }}>
+                        {productos.slice((page - 1) * itemsPerPage, page * itemsPerPage).map(producto => (
+                            <Grid item xs={12} sm={6} md={4} key={producto.id} style={{ display: 'flex' }}>
+                                <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                    <ActionAreaCard product={producto} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }} />
+                                    {modoEdicion && (
+                                        <Checkbox
+                                            style={{ position: 'absolute', top: 0, right: 0 }}
+                                            checked={selectedProducts.includes(producto.id)}
+                                            onChange={() => handleSelectProduct(producto.id)}
+                                        />
+                                    )}
+                                </div>
+                            </Grid>
+                        ))}
+                    </Grid>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px', marginBottom: '20px' }}>
+                    <Button variant="contained" color="primary" onClick={() => setModalIsOpen(true)}>Añadir producto</Button>
+                    {!modoEdicion ? (
+                        <>
+                            <Button variant="contained" color="primary" onClick={handleEditInventory} style={{ marginLeft: '10px' }}>Editar inventario</Button>
+                            <Button variant="contained" onClick={handleDeleteInventory} style={{ backgroundColor: '#f44336', color: 'white', marginLeft: '10px' }}>Eliminar inventario</Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button variant="contained" color="primary" onClick={handleOpenTituloInventarioModal} style={{ marginLeft: '10px' }}>Editar título del inventario</Button>
+                            <Button variant="contained" style={{ backgroundColor: '#f44336', color: 'white', marginLeft: '10px' }} onClick={handleDeleteProducts}>Eliminar productos seleccionados</Button>
+                            <Button variant="contained" style={{ backgroundColor: '#f44336', color: 'white', marginLeft: '10px' }} onClick={() => setModoEdicion(false)}>Cancelar edición</Button>
+                        </>
+                    )}
+                </div>
+                <Dialog open={modalIsOpen} onClose={() => setModalIsOpen(false)}>
+                    <DialogTitle>Añadir producto</DialogTitle>
+                    <DialogContent>
+                        <TextField type="text" placeholder="Nombre" value={nuevoProducto.nombre} onChange={e => setNuevoProducto({ ...nuevoProducto, nombre: e.target.value })} fullWidth />
+                        <TextField type="text" placeholder="Descripción" value={nuevoProducto.descripcion} onChange={e => setNuevoProducto({ ...nuevoProducto, descripcion: e.target.value })} fullWidth />
+                        <TextField type="file" onChange={e => setNuevoProducto({ ...nuevoProducto, imagen: e.target.files[0] })} />
+                        {!inventarioActual.esProducto && (
+                            <>
+                                <TextField type="text" placeholder="SKU" value={nuevoProducto.SKU} onChange={e => setNuevoProducto({ ...nuevoProducto, SKU: e.target.value })} fullWidth />
+                                <TextField type="text" placeholder="Talla" value={nuevoProducto.talla} onChange={e => setNuevoProducto({ ...nuevoProducto, talla: e.target.value })} fullWidth />
+                            </>
+                        )}
+                        <FormControl component="fieldset">
+                            <RadioGroup row aria-label="historial" name="row-radio-buttons-group" value={precioHistorial} onChange={(e) => setPrecioHistorial(e.target.value)}>
+                                <FormControlLabel value="maximo" control={<Radio />} label="Máximo" />
+                                <FormControlLabel value="minimo" control={<Radio />} label="Mínimo" />
+                            </RadioGroup>
+                        </FormControl>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={inventarioActual.esProducto ? handleAddProducto : handleAddZapatilla} color="primary">Confirmar</Button>
+                        <Button onClick={() => setModalIsOpen(false)} color="primary">Cancelar</Button>
+                    </DialogActions>
+                </Dialog>
+                <Dialog open={tituloInventarioModalOpen} onClose={handleCloseTituloInventarioModal}>
+                    <DialogTitle>Editar título del inventario</DialogTitle>
+                    <DialogContent>
+                        <TextField type="text" value={tituloInventario} onChange={handleTituloInventario} fullWidth />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleFinalizarEdicion} color="primary">Confirmar</Button>
+                        <Button onClick={handleCloseTituloInventarioModal} color="primary">Cancelar</Button>
+                    </DialogActions>
+                </Dialog>
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+                    <Pagination count={Math.ceil(productos.length / itemsPerPage)} page={page} onChange={handlePageChange} />
+                </div>
             </div>
         </div>
     );

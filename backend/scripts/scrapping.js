@@ -1,12 +1,10 @@
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const RecaptchaPlugin = require('puppeteer-extra-plugin-recaptcha');
 const readline = require('readline');
 const { Console } = require('console');
 require('dotenv').config();
 
 puppeteer.use(StealthPlugin());
-puppeteer.use(RecaptchaPlugin());
 
 const contrastockx = process.env.CONTRASENA_STOCKX;
 const mailStockx = process.env.MAIL_STOCKX;
@@ -592,8 +590,8 @@ async function busquedaHypeboost(browser, SKU, talla) {
     await page.keyboard.press('Space');
 
     //Vemos cuanto dinero nos darían
-    await page.waitForSelector('#payout-price + strong');
-    const precioFinal = await page.$eval('#payout-price + strong', el => el.textContent);
+    await page.waitForSelector('#payout-price');
+    const precioFinal = await page.$eval('#payout-price', el => el.textContent);
 
 
     nuestroPayout = Number(precioFinal.split('€')[0].replace(',', '.'));
@@ -601,6 +599,7 @@ async function busquedaHypeboost(browser, SKU, talla) {
     return nuestroPayout;
 
 }
+
 
 
 async function busquedaLaced(browser, SKU, talla) {
@@ -682,6 +681,11 @@ async function busquedaLaced(browser, SKU, talla) {
         let precioConPunto = precioSinEuro.replace(',', '.');
         return parseFloat(precioConPunto);
     });
+
+    //Si precio final es menor que 10 devolvemos 1000
+    if (precioFinal < 10) {
+        return 1000;
+    }
 
     return precioFinal;
 

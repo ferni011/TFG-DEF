@@ -18,7 +18,7 @@ import InputBase from '@mui/material/InputBase';
 import SearchIcon from '@mui/icons-material/Search';
 
 
-const pages = ['Inventarios', 'Zapatillas'];
+const pages = ['Inventarios', 'Zapatillas', 'Alertas'];
 const settings = ['Mi cuenta', 'Cerrar sesión'];
 
 function ResponsiveAppBar({ usuario, setUsuario }) {
@@ -217,7 +217,7 @@ function ResponsiveAppBar({ usuario, setUsuario }) {
 
                     <Box sx={{ flexGrow: 0 }}>
                         {usuario && (
-                            <Tooltip title="Open settings">
+                            <Tooltip title="Cuenta">
                                 <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                                     <AccountCircleIcon fontSize='large' style={{ color: 'whitesmoke' }} />
                                 </IconButton>

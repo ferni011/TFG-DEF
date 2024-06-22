@@ -61,6 +61,8 @@ const Producto = sequelize.define('Producto', {
   },
 });
 
+
+
 const Usuario = sequelize.define('Usuario', {
   nombre: {
     type: DataTypes.STRING,
@@ -96,7 +98,13 @@ const AlertaPrecio = sequelize.define('AlertaPrecio', {
   superior: {
     type: DataTypes.BOOLEAN,
     allowNull: false
+  },
+  lanzada: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false
   }
+
 });
 
 const HistorialPrecios = sequelize.define('HistorialPrecios', {
@@ -202,6 +210,7 @@ async function createInventario(nombre, esProducto, idUsuario) {
 }
 
 
+
 async function createProducto(nombre, descripcion, imagen, SKU, talla, zapatilla, idInventario, superior) {
   return new Promise(async (resolve, reject) => {
     try {
@@ -223,17 +232,25 @@ async function createProducto(nombre, descripcion, imagen, SKU, talla, zapatilla
         return;
       }
 
-
-      const producto = await Producto.create({
+      let productoData = {
         nombre: nombre,
         descripcion: descripcion,
-        imagen: imagen,
         SKU: SKU,
         talla: talla,
         zapatilla: zapatilla,
         idInventario: idInventario,
         superior: superior
-      });
+      };
+
+      if (imagen) {
+        productoData.imagen = imagen;
+      }
+      else{
+        productoData.imagen = 'http://localhost:1234/imagenes/default.jpg';
+      }
+      const producto = await Producto.create(productoData);
+
+
       if (zapatilla) {
         await zapatillasWebs.create({
           idProducto: producto.id,
@@ -290,7 +307,7 @@ async function actualizaPrecioProducto(id, precios, maximo) {
           tienda: tienda,
           idProducto: id
         });
-        console.log(`Precio ${tienda} actualizado a ${precioTienda}`); // Agrega esta línea
+        console.log(`Precio ${tienda} actualizado a ${precioTienda}`); 
       }
     }
     producto.precio = maximo ? precioMaximo : precioMinimo;
@@ -298,6 +315,8 @@ async function actualizaPrecioProducto(id, precios, maximo) {
     return producto.precio;
   }
 }
+
+
 
 async function agregaEnlacesProducto(id, enlaces) {
   const producto = await Producto.findByPk(id);
@@ -368,9 +387,14 @@ async function encuentraURL(url) {
   return urls;
 }
 
-async function devuelveInventarios(idUsuario) {
-  const inventarios = await Inventario.findAll({ where: { idUsuario: idUsuario } });
+async function devuelveInventarios(idUsuario, esProducto) {
+  const inventarios = await Inventario.findAll({ where: { idUsuario: idUsuario, esProducto: esProducto } });
   return inventarios;
+}
+
+async function tipoInventario(idInventario) {
+  const inventario = await Inventario.findByPk(idInventario);
+  return inventario.esProducto;
 }
 
 async function iniciarSesion(email, contrasena) {
@@ -451,7 +475,7 @@ async function editarInventario(id, nombre) {
 }
 
 
-async function editarProducto(id, nombre, descripcion, imagen, SKU, talla,superior) {
+async function editarProducto(id, nombre, descripcion, imagen, SKU, talla, superior) {
   const producto = await Producto.findByPk(id);
   if (producto) {
     if (nombre !== null && nombre !== undefined) {
@@ -509,22 +533,22 @@ async function crearAlertaPrecio(idProducto, precio, superior) {
   return alerta;
 }
 
+
 async function eliminaAlertaPrecio(id) {
-  const alerta = await AlertaPrecio.findOne({ where: { idProducto: id} });
+  const alerta = await AlertaPrecio.findOne({ where: { idProducto: id } });
   if (alerta) {
     await alerta.destroy();
   }
 }
 
 async function editarAlertaPrecio(id, precio, superior) {
-  const alerta = await AlertaPrecio.findOne({where: {idProducto: id}});
+  const alerta = await AlertaPrecio.findOne({ where: { idProducto: id } });
   if (alerta) {
-    if (alerta.precio) {
+    if (precio) {
       alerta.precio = precio;
     }
-    if (alerta.superior) {
-      alerta.superior = superior;
-    }
+    alerta.superior = superior;
+    alerta.lanzada = false;
     await alerta.save();
   }
 }
@@ -557,7 +581,7 @@ async function eliminarProducto(idProducto) {
     }
     await producto.destroy();
   }
-  else{
+  else {
     throw new Error('No existe el producto con el id proporcionado');
   }
 }
@@ -573,7 +597,7 @@ async function eliminarInventario(id) {
   }
 }
 
-async function buscarProductos(nombre,usuario){
+async function buscarProductos(nombre, usuario) {
   const inventarios = await Inventario.findAll({ where: { idUsuario: usuario } });
 
   const idInventarios = inventarios.map(inventario => inventario.id);
@@ -582,7 +606,7 @@ async function buscarProductos(nombre,usuario){
     where: {
       nombre: {
         [Op.like]: '%' + nombre + '%'
-      },  
+      },
       idInventario: {
         [Op.in]: idInventarios
       }
@@ -592,20 +616,43 @@ async function buscarProductos(nombre,usuario){
 }
 
 
-async function obtenerAlertas(){
+async function obtenerAlertas() {
   return await AlertaPrecio.findAll();
 }
 
-async function obtenerProductoAlerta(idAlerta){
+async function obtenerAlertasUsuario(idUsuario) {
+  const inventarios = await Inventario.findAll({ where: { idUsuario: idUsuario } });
+  const idInventarios = inventarios.map(inventario => inventario.id);
+  const productos = await Producto.findAll({ where: { idInventario: { [Op.in]: idInventarios } } });
+  const idProductos = productos.map(producto => producto.id);
+  const alertas = await AlertaPrecio.findAll({ where: { idProducto: { [Op.in]: idProductos } } });
+  return alertas;
+}
+
+
+async function obtenerUsuario(idUsuario){
+  const usuario = await Usuario.findByPk(idUsuario);
+  return usuario;
+}
+
+async function marcarAlerta(idAlerta){
+  const alerta = await AlertaPrecio.findByPk(idAlerta);
+  if(alerta){
+    alerta.lanzada = true;
+    await alerta.save();
+  }
+}
+
+async function obtenerUsuarioPorAlerta(idAlerta){
   const alerta = await AlertaPrecio.findByPk(idAlerta);
   if(alerta){
     const producto = await Producto.findByPk(alerta.idProducto);
-    return producto;
+    const inventario = await Inventario.findByPk(producto.idInventario);
+    const usuario = await Usuario.findByPk(inventario.idUsuario);
+    return usuario;
   }
 }
 
 
-
-
-module.exports = { Producto, sequelize, urlsProductos, HistorialPrecios, AlertaPrecio, Inventario, Usuario, zapatillasWebs, createProducto, createUsuario, createInventario, devolverproductoId, devolverproductos, actualizaPrecioProducto, agregaEnlacesProducto, eligeWebsZapatilla, obtenerUrlsProducto, obtenerWebsElegidas, modificaSelector, devuelveInventarios, iniciarSesion, eliminarUsuario, modificarUsuario, obtenerProductos, eliminarProducto, editarInventario, editarProducto, eliminarUrl, obtenerPreciosProducto, crearAlertaPrecio, eliminaAlertaPrecio, editarAlertaPrecio, obtenerAlerta, precioActualProducto, eliminarInventario, buscarProductos, obtenerAlertas, obtenerProductoAlerta };
+module.exports = { Producto, sequelize, urlsProductos, HistorialPrecios, AlertaPrecio, Inventario, Usuario, zapatillasWebs, createProducto, createUsuario, createInventario, devolverproductoId, devolverproductos, actualizaPrecioProducto, agregaEnlacesProducto, eligeWebsZapatilla, obtenerUrlsProducto, obtenerWebsElegidas, modificaSelector, devuelveInventarios, iniciarSesion, eliminarUsuario, modificarUsuario, obtenerProductos, eliminarProducto, editarInventario, editarProducto, eliminarUrl, obtenerPreciosProducto, crearAlertaPrecio, eliminaAlertaPrecio, editarAlertaPrecio, obtenerAlerta, precioActualProducto, eliminarInventario, buscarProductos, obtenerAlertas, tipoInventario, obtenerUsuario, obtenerAlertasUsuario, marcarAlerta, obtenerUsuarioPorAlerta };
 

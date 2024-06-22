@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Grid, Box, Card, CardMedia, Button, Typography, TextField } from '@mui/material';
+import { Grid, Box, Card, CardMedia, Button, Typography, TextField, CircularProgress } from '@mui/material';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -13,7 +13,7 @@ import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormControl from '@mui/material/FormControl';
-import FormLabel from '@mui/material/FormLabel';
+
 
 const Detalles = () => {
     const { idProducto } = useParams();
@@ -25,12 +25,13 @@ const Detalles = () => {
     const [imagenEditada, setImagenEditada] = useState('');
     const [open, setOpen] = useState(false);
     const [valorSeleccionado, setValorSeleccionado] = useState('maximo');
+    const [loading, setLoading] = useState(false);
 
     const navigate = useNavigate();
 
     useEffect(() => {
         console.log("EL id es:" + idProducto);
-        fetch(`http://localhost:1234/api/producto/${idProducto}`).then(response => {
+        fetch(`http://localhost:1234/api/obtenerProducto?id=${idProducto}`).then(response => {
             if (response.ok) {
                 return response.json();
             }
@@ -43,20 +44,27 @@ const Detalles = () => {
     }, [idProducto]);
 
     const handleGetProductPrice = async () => {
+        setLoading(true);
         if (!idProducto) {
             console.error('idProducto no está definido');
             console.log("EL ID DEL PRODUCTO" + idProducto);
             return;
         }
-        const response = await fetch(`http://localhost:1234/api/precioProducto`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ id: idProducto })
-        }).catch(error => {
+        let response;
+        try {
+            response = await fetch(`http://localhost:1234/api/precioProducto`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id: idProducto })
+            });
+        } catch (error) {
             console.error(error);
-        });
+        } finally {
+            setLoading(false);
+        }
+
 
         if (!response.ok) {
             throw new Error('Error al obtener precio de producto');
@@ -66,6 +74,39 @@ const Detalles = () => {
         console.log(data.precioMinimo);
         setPrecioObtenido(data.precioMinimo);
     };
+
+    const handleGetZapatillaPrice = async () => {
+        setLoading(true);
+        if (!idProducto) {
+            console.error('idProducto no está definido');
+            console.log("EL ID DEL PRODUCTO" + idProducto);
+            return;
+        }
+        let response;
+        try {
+            setLoading(true);
+            response = await fetch(`http://localhost:1234/api/zapatillaPrecio`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id: idProducto })
+            });
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+
+        if (!response.ok) {
+            throw new Error('Error al obtener precio de producto');
+        }
+
+        const data = await response.json();
+        console.log(data.precioMax);
+        setPrecioObtenido(data.precioMax);
+    };
+
 
     const handleEdit = () => {
         setEditando(true);
@@ -89,6 +130,11 @@ const Detalles = () => {
         }
         formData.append('superior', valorSeleccionado === 'maximo' ? '1' : '0');
 
+        if (producto.zapatilla) {
+            formData.append('SKU', producto.SKU);
+            formData.append('talla', producto.talla);
+        }
+
         const response = await fetch(`http://localhost:1234/api/modificarProducto`, {
             method: 'PUT',
             body: formData,
@@ -99,7 +145,7 @@ const Detalles = () => {
             console.log(message);
             setEditando(false);
             setOpen(false);
-            fetch(`http://localhost:1234/api/producto/${idProducto}`).then(response => {
+            fetch(`http://localhost:1234/api/obtenerProducto?id=${idProducto}`).then(response => {
                 if (response.ok) {
                     return response.json();
                 }
@@ -128,46 +174,122 @@ const Detalles = () => {
     };
 
 
+
     return (
         <div>
             {producto ? (
-                <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} md={6}>
-                        {producto.imagen && (
-                            <Box mt={3} ml={2}>
-                                <Card>
-                                    <CardMedia
-                                        component="img"
-                                        height="550"
-                                        image={producto.imagen}
-                                        alt={producto.nombre}
-                                        style={{ objectFit: 'contain' }}
-                                    />
-                                </Card>
+                <div>
+                    <Grid container spacing={2} alignItems="center">
+                        <Grid item xs={12} md={6}>
+                            {producto.imagen && (
+                                <Box mt={3} ml={2}>
+                                    <Card>
+                                        <CardMedia
+                                            component="img"
+                                            height="550"
+                                            image={producto.imagen}
+                                            alt={producto.nombre}
+                                            style={{ objectFit: 'contain' }}
+                                        />
+                                    </Card>
+                                </Box>
+                            )}
+                            <Box mt={2} display="flex" flexDirection="row" justifyContent="center" alignItems="center">
+                                <Button variant="contained" color="primary" onClick={handleEdit} sx={{ mr: 2 }}><EditIcon /></Button>
+                                <Button variant="contained" style={{ backgroundColor: 'red' }} onClick={handleDelete}><DeleteIcon /></Button>
                             </Box>
-                        )}
-                        <Box mt={2} display="flex" flexDirection="row" justifyContent="center" alignItems="center">
-                            <Button variant="contained" color="primary" onClick={handleEdit} sx={{ mr: 2 }}><EditIcon /></Button>
-                            <Button variant="contained" style={{ backgroundColor: 'red' }} onClick={handleDelete}><DeleteIcon /></Button>
-                        </Box>
+                        </Grid>
+                        <Grid item xs={12} md={6} display="flex" flexDirection="column" justifyContent="center" alignItems="center">
+                            <Typography variant="h3" align="center" mb={4}>
+                                {producto.nombre}
+                                <IconButton onClick={() => navigate(`/AlertaProducto/${idProducto}`)} style={{ marginLeft: '1vw' }}>
+                                    <NotificationsIcon style={{ fontSize: '40px', color: 'gold' }} />
+                                </IconButton>
+                            </Typography>
+                            <Typography variant="body1" align="center" mb={2}>{producto.descripcion}</Typography>
+                            {producto.zapatilla && (
+                                <>
+                                    <Typography variant="body1" align="center" mb={2}>
+                                        <span style={{ fontWeight: 'bold' }}>SKU:</span> {producto.SKU}
+                                    </Typography>
+                                    <Typography variant="body1" align="center" mb={2}>
+                                        <span style={{ fontWeight: 'bold' }}>Talla:</span> {producto.talla}
+                                    </Typography>
+                                </>
+                            )}
+                            <Typography variant="body1" align="center">
+                                <span style={{ fontWeight: 'bold' }}>Precio:</span> {precioObtenido !== null ? precioObtenido : producto.precio}
+                            </Typography>                        <Box mt={2} display="flex" flexDirection="row" justifyContent="center" alignItems="center">
+                                <Box mt={2} display="flex" flexDirection="column" justifyContent="center" alignItems="center">
+                                    <Box display="flex" flexDirection="row" justifyContent="center" alignItems="center">
+                                        <Button variant="contained" color="primary" onClick={() => navigate(`/historialPrecios/${idProducto}`)} sx={{ mr: 2 }}>
+                                            Historial de precios
+                                        </Button>
+                                        <Button variant="contained" color="primary" onClick={producto.zapatilla ? handleGetZapatillaPrice : handleGetProductPrice}>
+                                            Obtener mejor precio de producto
+                                        </Button>
+                                    </Box>
+                                    {loading && <Box mt={6}><CircularProgress /></Box>}
+                                </Box>
+                            </Box>
+                        </Grid>
                     </Grid>
-                    <Grid item xs={12} md={6} display="flex" flexDirection="column" justifyContent="center" alignItems="center">
-                        <Typography variant="h3" align="center" mb={4}>
-                            {producto.nombre}
-                            <IconButton onClick={() => navigate(`/AlertaProducto/${idProducto}`)} style={{ marginLeft: '1vw' }}>
-                                <NotificationsIcon style={{ fontSize: '40px', color: 'gold' }} />
-                            </IconButton>
-                        </Typography>
-                        <Typography variant="body1" align="center" mb={2}>{producto.descripcion}</Typography>
-                        <Typography variant="body1" align="center">Precio: {precioObtenido !== null ? precioObtenido : producto.precio}</Typography>
-                        <Box mt={2} display="flex" flexDirection="row" justifyContent="center" alignItems="center">
-                            <Button variant="contained" color="primary" onClick={() => navigate(`/historialPrecios/${idProducto}`)} sx={{ mr: 2 }}>
-                                Historial de precios
-                            </Button>
-                            <Button variant="contained" color="primary" onClick={handleGetProductPrice}>Obtener mejor precio de producto</Button>
-                        </Box>
-                    </Grid>
-                </Grid>
+                    <Dialog open={open} onClose={handleClose}>
+                        <DialogTitle>Editar Producto</DialogTitle>
+                        <DialogContent>
+                            <TextField label="Nombre" value={tituloEditado} onChange={e => setTituloEditado(e.target.value)} fullWidth sx={{ mt: 2 }} />
+                            <TextField label="Descripción" value={descripcionEditada} onChange={e => setDescripcionEditada(e.target.value)} fullWidth sx={{ mt: 2 }} />
+
+                            {producto.zapatilla && (
+                                <>
+                                    <TextField
+                                        label="SKU"
+                                        value={producto.SKU}
+                                        onChange={(e) => setProducto({ ...producto, SKU: e.target.value })}
+                                        fullWidth
+                                        sx={{ mt: 2 }}
+                                    />
+
+                                    <TextField
+                                        label="Talla"
+                                        type="text"
+                                        value={producto.talla}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            if (!value || /^\d*\.?\d*$/.test(value)) {
+                                                setProducto({ ...producto, talla: value });
+                                            }
+                                        }}
+                                        fullWidth
+                                        sx={{ mt: 2 }}
+                                    />
+                                </>
+                            )}
+                            <FormControl component="fieldset">
+                                <RadioGroup row aria-label="historial" name="row-radio-buttons-group" value={valorSeleccionado} onChange={(e) => setValorSeleccionado(e.target.value)}>
+                                    <FormControlLabel value="maximo" control={<Radio />} label="Máximo" />
+                                    <FormControlLabel value="minimo" control={<Radio />} label="Mínimo" />
+                                </RadioGroup>
+                            </FormControl>
+                            <input
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                                id="raised-button-file"
+                                type="file"
+                                onChange={e => setImagenEditada(e.target.files[0])}
+                            />
+                            <label htmlFor="raised-button-file" style={{ display: 'flex', justifyContent: 'center' }}>
+                                <Button variant="contained" color="primary" component="span" fullWidth sx={{ mt: 2 }}>
+                                    Subir imagen
+                                </Button>
+                            </label>
+                        </DialogContent>
+                        <DialogActions>
+                            <Button onClick={handleClose}>Cancelar</Button>
+                            <Button onClick={handleSave}>Guardar</Button>
+                        </DialogActions>
+                    </Dialog>
+                </div>
             ) : (
                 <p>Loading...</p>
             )}
@@ -176,6 +298,32 @@ const Detalles = () => {
                 <DialogContent>
                     <TextField label="Nombre" value={tituloEditado} onChange={e => setTituloEditado(e.target.value)} fullWidth sx={{ mt: 2 }} />
                     <TextField label="Descripción" value={descripcionEditada} onChange={e => setDescripcionEditada(e.target.value)} fullWidth sx={{ mt: 2 }} />
+
+                    {producto && producto.zapatilla && (
+                        <>
+                            <TextField
+                                label="SKU"
+                                value={producto.SKU}
+                                onChange={(e) => setProducto({ ...producto, SKU: e.target.value })}
+                                fullWidth
+                                sx={{ mt: 2 }}
+                            />
+
+                            <TextField
+                                label="Talla"
+                                type="text"
+                                value={producto.talla}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    if (!value || /^\d*\.?\d*$/.test(value)) {
+                                        setProducto({ ...producto, talla: value });
+                                    }
+                                }}
+                                fullWidth
+                                sx={{ mt: 2 }}
+                            />
+                        </>
+                    )}
                     <FormControl component="fieldset">
                         <RadioGroup row aria-label="historial" name="row-radio-buttons-group" value={valorSeleccionado} onChange={(e) => setValorSeleccionado(e.target.value)}>
                             <FormControlLabel value="maximo" control={<Radio />} label="Máximo" />

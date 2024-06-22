@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Modal from 'react-modal';
 import Container from '@mui/material/Container';
 import TextField from '@mui/material/TextField';
@@ -10,6 +10,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+
 
 Modal.setAppElement('#root');
 
@@ -62,6 +63,7 @@ function Cuenta({ usuario, setUsuario }) {
     const [password, setPassword] = useState('');
     const [error, setError] = useState(null);
     const [errorModal, setErrorModal] = useState(null);
+    const [usuarioCompleto, setUsuarioCompleto] = useState({});
 
     const openModal = () => {
         setModalIsOpen(true);
@@ -111,13 +113,39 @@ function Cuenta({ usuario, setUsuario }) {
         });
     }
 
+    useEffect(() => {
+        async function obtenerUsuario(idUsuario){
+            const response = await fetch(`http://localhost:1234/api/obtenerUsuario?id=${idUsuario}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            });
+
+            if (!response.ok) {
+                const responseBody = await response.json();
+                throw new Error(responseBody.error);
+            }
+
+            const usuario = await response.json();
+            setUsuarioCompleto(usuario);
+        }
+        if (!usuario) {
+            navigate('/iniciar-sesion');
+        }
+        else{
+            obtenerUsuario(usuario);
+        }
+    }
+    , [usuario]);
+
     return (
         <div>
             <Container maxWidth="sm">
                 <Box mt={4}>
                     <form onSubmit={handleModificar}>
-                        <TextField name="nombre" onChange={handleChange} placeholder="Nuevo nombre" fullWidth margin="normal" />
-                        <TextField name="email" onChange={handleChange} placeholder="Nuevo email" fullWidth margin="normal" />
+                        <TextField name="nombre" onChange={handleChange} placeholder={usuarioCompleto.nombre} fullWidth margin="normal" />
+                        <TextField name="email" onChange={handleChange} placeholder={usuarioCompleto.email} fullWidth margin="normal" />
                         <TextField type="password" name="contrasenaNueva" onChange={handleChange} placeholder="Nueva contraseña" fullWidth margin="normal" />
                         <TextField type="password" name="contrasena" onChange={handleChange} placeholder="Contraseña actual" fullWidth margin="normal" />
                         <Button type="submit" disabled={!datosNuevos.contrasena} variant="contained" color="primary" fullWidth style={{ marginTop: '20px'}}>Modificar cuenta</Button>

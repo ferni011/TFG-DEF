@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Grid, Box, TextField, Button, FormControlLabel, Radio, RadioGroup, Typography, Card, CardMedia } from '@mui/material';
+import { Grid, Box, TextField, Button, FormControlLabel, Radio, RadioGroup, Typography, Card, CardMedia, Alert, Snackbar } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'; // Importa el ícono de flecha hacia atrás
+
 
 const AlertaProducto = () => {
     const { idProducto } = useParams();
@@ -8,12 +10,14 @@ const AlertaProducto = () => {
     const [precio, setPrecio] = useState('');
     const [superior, setSuperior] = useState('');
     const [alerta, setAlerta] = useState(null);
+    const [open, setOpen] = useState(false);
+    const [alert, setAlert] = useState({ severity: "success", message: "" });
 
     const navigate = useNavigate();
 
     useEffect(() => {
         const fetchProducto = async () => {
-            const response = await fetch(`http://localhost:1234/api/producto/${idProducto}`);
+            const response = await fetch(`http://localhost:1234/api/obtenerProducto?id=${idProducto}`);
             const data = await response.json();
             setProducto(data);
         };
@@ -25,7 +29,7 @@ const AlertaProducto = () => {
 
             if (data) {
                 setPrecio(data.precio);
-                setSuperior(data.superior ? 'superior' : 'inferior');
+                setSuperior(data.superior);
             }
 
         };
@@ -46,10 +50,11 @@ const AlertaProducto = () => {
                 body: JSON.stringify({ idProducto, precio, superior }),
             });
 
-            alert('Alerta creada');
+            navigate(`/detalles/${idProducto}`);
         } catch (error) {
             console.error(error);
-            alert('Ocurrió un error al crear la alerta');
+            setAlert({ severity: "error", message: "Ocurrió un error al crear la alerta" });
+            setOpen(true);
         }
     };
 
@@ -64,10 +69,12 @@ const AlertaProducto = () => {
                 body: JSON.stringify({ id: idProducto, precio, superior }),
             });
 
-            alert('Alerta modificada');
+            setAlert({ severity: "success", message: "Alerta modificada" });
+            setOpen(true);
         } catch (error) {
             console.error(error);
-            alert('Ocurrió un error al modificar la alerta');
+            setAlert({ severity: "error", message: "Ocurrió un error al modificar la alerta" });
+            setOpen(true);
         }
     };
 
@@ -85,12 +92,19 @@ const AlertaProducto = () => {
         }
         catch (error) {
             console.error(error);
-            alert('Ocurrió un error al eliminar la alerta');
+            setAlert({ severity: "error", message: "Ocurrió un error al eliminar la alerta" });
+            setOpen(true);
         }
     };
 
+
     return (
         <Grid container spacing={2}>
+            <Grid item xs={12}>
+                <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} style={{ margin: '10px' }}>
+                    Volver
+                </Button>
+            </Grid>
             <Grid item xs={6}>
                 <Box mt={5} ml={10}>
                     <Card>
@@ -126,8 +140,8 @@ const AlertaProducto = () => {
                         />
                         <RadioGroup
                             row
-                            value={superior}
-                            onChange={(event) => setSuperior(event.target.value)}
+                            value={superior ? "superior" : "inferior"}
+                            onChange={(event) => setSuperior(event.target.value === 'superior')}
                             mt={3}
                             style={{ justifyContent: 'center' }}
                         >
@@ -152,8 +166,12 @@ const AlertaProducto = () => {
                     </Box>
                 </Box>
             </Grid>
+            <Snackbar open={open} autoHideDuration={2000} onClose={() => setOpen(false)}>
+                <Alert onClose={() => setOpen(false)} severity={alert.severity} sx={{ width: '100%' }}>
+                    {alert.message}
+                </Alert>
+            </Snackbar>
         </Grid>
-
     );
 };
 

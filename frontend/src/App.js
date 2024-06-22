@@ -11,30 +11,30 @@ import Historial from './Historial';
 import ResponsiveAppBar from './ResponsiveAppBar';
 import Resultados from './Resultados';
 import AlertaProducto from './AlertaProducto';
-
-
+import Zapatillas from './Zapatillas';
+import Alertas from './Alertas';
 
 function App() {
 
     const [usuario, setUsuario] = useState(null);
     const [inventarioActual, setInventarioActual] = useState(null);
 
-    useEffect(() => {
-        const lanzarAlertas = async () => {
-            const response = await fetch(`http://localhost:1234/api/ejecutaAlertas`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-            });
+    // useEffect(() => {
+    //     const lanzarAlertas = async () => {
+    //         const response = await fetch(`http://localhost:1234/api/ejecutaAlertas`, {
+    //             method: 'GET',
+    //             headers: {
+    //                 'Content-Type': 'application/json'
+    //             },
+    //         });
 
-            if (!response.ok) {
-                throw new Error('Error al ejecutar las alertas');
-            }
-        };
+    //         if (!response.ok) {
+    //             throw new Error('Error al ejecutar las alertas');
+    //         }
+    //     };
 
-        lanzarAlertas();
-    }, []);
+    //     lanzarAlertas();
+    // }, []);
 
 
     return (
@@ -48,10 +48,13 @@ function App() {
                 <Route path="/cuenta" element={usuario ? <Cuenta usuario={usuario} setUsuario={setUsuario} /> : <Navigate to="/iniciar-sesion" />} />
                 <Route path="/inventarios" element={usuario ? <Inventarios usuario={usuario} setInventarioActual={setInventarioActual} /> : <Navigate to="/iniciar-sesion" />} />
                 <Route path="/productos/:idInventario" element={usuario ? <Productos usuario={usuario} inventarioActual={inventarioActual} /> : <Navigate to="/iniciar-sesion" />} />
+                <Route path="/zapatillas/" element={usuario ? <Zapatillas usuario={usuario} setInventarioActual={setInventarioActual}/> : <Navigate to="/iniciar-sesion" />} />
+                <Route path="/zapatillas/:idInventario" element={usuario ? <Productos usuario={usuario} inventarioActual={inventarioActual} /> : <Navigate to="/iniciar-sesion" />} />
                 <Route path="/detalles/:idProducto" element={usuario ? <Detalles /> : <Navigate to="/iniciar-sesion" />} />
                 <Route path="/historialPrecios/:idProducto" element={usuario ? <Historial /> : <Navigate to="/iniciar-sesion" />} />
                 <Route path="/resultados" element={usuario ? <Resultados /> : <Navigate to="/iniciar-sesion" />} />
                 <Route path="/alertaProducto/:idProducto" element={usuario ? <AlertaProducto /> : <Navigate to="/iniciar-sesion" />} />
+                <Route path="/alertas" element={usuario ? <Alertas usuario={usuario} /> : <Navigate to="/iniciar-sesion" /> } />
             </Routes>
         </Router>
     );

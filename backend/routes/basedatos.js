@@ -254,9 +254,9 @@ async function createProducto(nombre, descripcion, imagen, SKU, talla, zapatilla
       if (zapatilla) {
         await zapatillasWebs.create({
           idProducto: producto.id,
-          klekt: false,
-          hypeboost: false,
-          laced: false
+          klekt: true,
+          hypeboost: true,
+          laced: true
         });
       }
       resolve(producto);
@@ -301,7 +301,6 @@ async function actualizaPrecioProducto(id, precios, maximo) {
           precioMinimo = precioTienda;
         }
         producto[tienda] = precioTienda;
-        await producto.save();
         HistorialPrecios.create({
           precio: precioTienda,
           tienda: tienda,

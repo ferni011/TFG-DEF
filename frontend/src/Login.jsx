@@ -75,7 +75,7 @@ function Login({ setUsuario }) {
                     sm={4}
                     md={7}
                     sx={{
-                        backgroundImage: 'url(https://images6.alphacoders.com/114/thumb-1920-1141549.png)',
+                        backgroundImage: `url(${process.env.PUBLIC_URL}/logo-color.png)`,
                         backgroundRepeat: 'no-repeat',
                         backgroundColor: (t) =>
                             t.palette.mode === 'light' ? t.palette.grey[50] : t.palette.grey[900],

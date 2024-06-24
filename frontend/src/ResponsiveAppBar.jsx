@@ -132,11 +132,19 @@ function ResponsiveAppBar({ usuario, setUsuario }) {
             <Container maxWidth="xl">
                 <Toolbar disableGutters>
                     <IconButton
-                        sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }}
+                        sx={{ display: { xs: 'none', md: 'flex' }, mr: 1, position: 'relative' }}
                         onClick={() => navigate('/inicio')}
                         style={{ color: 'whitesmoke' }}
                     >
-                        <AdbIcon />
+                        <img src={`${process.env.PUBLIC_URL}/preciooptimo-favicon-white.png`} alt="Logo" style={{
+                            width: 80,
+                            height: 80,
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%) scale(1.5)',
+                            transformOrigin: 'center center'
+                        }} />
                     </IconButton>
 
                     <Box sx={{ flexGrow: 35 }} />

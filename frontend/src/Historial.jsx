@@ -26,7 +26,7 @@ const Historial = () => {
     const [tiendas, setTiendas] = useState({ klekt: false, hypeboost: false, laced: false });
 
 
-    const preciosPorPagina = 6;
+    const preciosPorPagina = 12;
     const preciosPaginados = precios.slice((currentPage - 1) * preciosPorPagina, currentPage * preciosPorPagina);
 
     useEffect(() => {

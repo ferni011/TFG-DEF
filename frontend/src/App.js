@@ -19,22 +19,22 @@ function App() {
     const [usuario, setUsuario] = useState(null);
     const [inventarioActual, setInventarioActual] = useState(null);
 
-    // useEffect(() => {
-    //     const lanzarAlertas = async () => {
-    //         const response = await fetch(`http://localhost:1234/api/ejecutaAlertas`, {
-    //             method: 'GET',
-    //             headers: {
-    //                 'Content-Type': 'application/json'
-    //             },
-    //         });
+    useEffect(() => {
+        const lanzarAlertas = async () => {
+            const response = await fetch(`http://localhost:1234/api/ejecutaAlertas`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            });
 
-    //         if (!response.ok) {
-    //             throw new Error('Error al ejecutar las alertas');
-    //         }
-    //     };
+            if (!response.ok) {
+                throw new Error('Error al ejecutar las alertas');
+            }
+        };
 
-    //     lanzarAlertas();
-    // }, []);
+        lanzarAlertas();
+    }, []);
 
 
     return (

@@ -556,7 +556,7 @@ router.get('/buscarProductos', async (req, res) => {
 
 router.get('/ejecutaAlertas', async (req, res) => {
   try {
-    cron.schedule('*/1 * * * *', async () => { // se ejecuta cada 5 minutos
+    cron.schedule('*/5 * * * *', async () => { // se ejecuta cada 5 minutos
       let alertas = await obtenerAlertas();
 
       for (let alerta of alertas) {
@@ -678,7 +678,7 @@ router.get('/ejecutaAlertas', async (req, res) => {
                 let mailOptions = {
                   from: 'cuentatfgfer@gmail.com',
                   to: email,
-                  subject: `El precio de la zapatilla se encuentra por debajo de ${precioActual}`,
+                  subject: `El precio del producto se encuentra por debajo de ${precioActual}`,
                   text: `El precio actual es de ${precioMax}€`,
                 };
 
